@@ -3,19 +3,17 @@ import urllib2
 import zipfile
 import curses
 import guessit
-# from unicodedata import normalize
+import os.path as path
 from ConfigParser import ConfigParser
 from tempfile import mkdtemp
 from urllib import urlretrieve
 from xml.dom.minidom import parse
-from os.path import join, abspath, pardir
-from os import rename
+from os import rename, listdir
 
 configFile = 'scrappy.conf'
 CFG = ConfigParser()
 CFG.read(configFile)
 
-normalgo = 'NFKD'  # Unicode normalization algorithm
 APIKEY = 'D1BD82E2AE599ADD'
 API = 'http://www.thetvdb.com/api/'
 APIPATH = API + APIKEY
@@ -48,7 +46,7 @@ def getLanguages():
 
     returns : list
     """
-    lang = parse(urllib2.urlopen(join(APIPATH, langxml)))
+    lang = parse(urllib2.urlopen(path.join(APIPATH, langxml)))
     return [stripTags(node.toxml()) for node in lang.getElementsByTagName('abbreviation')]
 
 
@@ -81,6 +79,10 @@ def levenshteinDistance(s1, s2):
         previous_row = current_row
 
     return previous_row[-1]
+
+
+def listdir_fullpath(d):
+    return [path.join(d, f) for f in listdir(d)]
 
 
 class Scrappy(object):
@@ -162,17 +164,28 @@ class Scrape(object):
     """Class to handle file renaming based on TVDB queries.
 
     Parameters:
-    filelist : list of strings
-        List of video files **of the same series**.
+    media : string or list of strings.
+        List of filenames or single directory containing files **of the same series**.
     """
-    def __init__(self, filelist, seriesname=None, tvdbid=None):
-        if filelist == [] or filelist == '':
-            raise AttributeError('filelist variable contains no data.')
+    def __init__(self, media, seriesname=None, tvdbid=None):
+        if media == [] or media == '':
+            raise AttributeError('media variable contains no data.')
+        if isinstance(media, str):
+            media = [media]
 
-        if isinstance(filelist, str):
-            filelist = [filelist]
+        # Flatten directories, get full paths.
+        fnames = []
+        for item in media:
+            if path.isdir(item):
+                for fullpath in listdir_fullpath(item):
+                    fnames.append(fullpath)
+            elif path.isfile(item):
+                fnames.append(fullpath)
 
-        self.files = filelist
+        if False in [path.isfile(f) for f in fnames]:
+            raise IOError('One or more files could not be reached.  Check path names!')
+
+        self.files = fnames
         self.filemap = {fname: None for fname in self.files}
         self.seriesname = seriesname  # Do not use this to set filename -- data is normalized!  Get data from XML instead.
         self.id = tvdbid
@@ -191,7 +204,7 @@ class Scrape(object):
 
         searchstring = "GetSeries.php?seriesname=" + urllib2.quote(self.seriesname) + "&language=" + urllib2.quote(CFG.get('General', 'language'))
         try:
-            series_hits = parse(urllib2.urlopen(join(API, searchstring)))
+            series_hits = parse(urllib2.urlopen(path.join(API, searchstring)))
         except:
             return []
 
@@ -209,15 +222,15 @@ class Scrape(object):
         zfname = CFG.get('General', 'language') + ".zip"
         searchstring = APIPATH + "/series/" + self.id + "/all/" + zfname
         try:
-            urlretrieve(searchstring, join(self.tmpdir, zfname))
+            urlretrieve(searchstring, path.join(self.tmpdir, zfname))
         except:
             return None
 
-        with zipfile.ZipFile(join(self.tmpdir, zfname)) as zipf:
+        with zipfile.ZipFile(path.join(self.tmpdir, zfname)) as zipf:
             xmlname = CFG.get('General', 'language') + '.xml'
             zipf.extract(xmlname, self.tmpdir)
 
-        self.seriesxml = parse(join(self.tmpdir, xmlname))
+        self.seriesxml = parse(path.join(self.tmpdir, xmlname))
         return self.seriesxml
 
     def mapSeriesInfo(self):
@@ -229,7 +242,7 @@ class Scrape(object):
 
         ep = [node for node in self.seriesxml.getElementsByTagName('Episode')]
         for fname in self.files:
-            guess = guessit.guess_episode_info(fname)
+            guess = guessit.guess_episode_info(path.split(fname)[1])
             # TODO:  CFG entries for all the weird episode ordering (default to above)
             for epNode in ep:
                 if guess['season'] == int(stripTags(epNode.getElementsByTagName('SeasonNumber')[0].toxml())):
@@ -257,6 +270,7 @@ class Scrape(object):
                 snum = self.format(self.filemap[fname]['S'], 'S')  # TODO: replace with config file values
                 enum = self.format(self.filemap[fname]['E'], 'E')
                 newname = '.'.join([sname, snum, enum, ename, self.filemap[fname]['ext']])
+                newname = path.join(path.split(fname)[0], newname)
                 try:
                     rename(fname, newname)
                     self.old_[newname] = fname
@@ -291,7 +305,7 @@ class Scrape(object):
 
         return: string
         """
-        guesses = [guessit.guess_episode_info(f) for f in self.files]
+        guesses = [guessit.guess_episode_info(path.split(f)[1]) for f in self.files]
         guesses = [guess for guess in guesses if 'series' in guess]
         if guesses == []:
             return None  # perhaps try looking at metadata?
@@ -317,7 +331,8 @@ class Scrape(object):
                     if score[key] > oldscore:
                         bestguess = key
                         olsdcore = score[key]
-        return bestguess
+        self.seriesname = buestguess
+        return self.seriesname
 
     def getTVDBid(self, thresh):
         """Get TVDB id number for detected series name.
