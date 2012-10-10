@@ -1,40 +1,19 @@
 #!/usr/bin/env python
 import zipfile
 import os.path as path
+from os import rename, listdir
 from ConfigParser import ConfigParser
 from tempfile import mkdtemp
-from xml.dom.minidom import parse, parseString
-from os import rename, listdir
 import requests
 import guessit
+from bs4 import BeautifulSoup
 
-configFile = 'scrappy.conf'
 CFG = ConfigParser()
-CFG.read(configFile)
+CFG.read('scrappy.conf')
 
 APIKEY = 'D1BD82E2AE599ADD'
 API = 'http://www.thetvdb.com/api/'
 APIPATH = API + APIKEY
-
-
-def stripTags(node):
-    """Removes all <> style tags.
-
-    node : unicode string
-
-    return : unicode string
-    """
-    # convert in_text to a mutable object (e.g. list)
-    nodelist = list(node)
-    i, j = 0, 0
-    while i < len(nodelist):
-        if nodelist[i] == '<':
-            while nodelist[i] != '>':
-                nodelist.pop(i)
-            nodelist.pop(i)
-        else:
-            i = i + 1
-    return ''.join(nodelist)
 
 
 def getLanguages():
@@ -43,8 +22,8 @@ def getLanguages():
     returns : list
     """
     resp = requests.get(path.join(APIPATH, 'languages.xml'))
-    lang = parseString(resp.content)
-    return [stripTags(node.toxml()) for node in lang.getElementsByTagName('abbreviation')]
+    lang = BeautifulSoup(resp.content)
+    return [node for node in (l.string for l in lang.find_all('abbreviation'))]
 
 
 def checkLanguageSettings():
@@ -112,6 +91,41 @@ class Scrape(object):
 
         self.tmpdir = mkdtemp()
 
+    def getSeriesName(self):
+        """Guess series name based on filename.
+
+        return: string
+        """
+        guesses = [guessit.guess_episode_info(path.split(f)[1]) for f in self.files]
+        guesses = [guess for guess in guesses if 'series' in guess]
+        if guesses == []:
+            print "DEBUG WARNING:  no guesses found!"  # DEBUG
+            return None  # perhaps try looking at metadata?
+        else:
+            high_conf = {}
+            normalCount = {}
+            for guess in guesses:
+                guess['normalized'] = guess['series'].strip().lower()  # Normalize titles
+                if guess['normalized'] in normalCount:
+                    normalCount[guess['normalized']] += 1
+                else:
+                    normalCount[guess['normalized']] = 1
+                    high_conf[guess['normalized']] = 0.
+
+                if guess.confidence('series') > high_conf[guess['normalized']]:
+                    high_conf[guess['normalized']] = guess.confidence('series')  # Reject all but highest-rated title among identical titles
+
+                #   Select title with highest rating / occurrence
+                score = dict((key, high_conf[key] * normalCount[key]) for key in normalCount)
+                bestguess = None
+                oldscore = 0.
+                for key in score:
+                    if score[key] > oldscore:
+                        bestguess = key
+                        oldscore = score[key]
+
+        self.seriesname = bestguess
+
     def querySeriesName(self):
         """Query THETVDB for series name.
 
@@ -125,8 +139,7 @@ class Scrape(object):
         if resp.status_code != requests.codes.ok:
             return ()
 
-        series_hits = parseString(resp.content)
-        return [node for node in series_hits.getElementsByTagName('Series')]
+        return BeautifulSoup(resp.content).find_all('series')
 
     def urlretrieve(self, url, outdir):
         flag = False
@@ -157,8 +170,8 @@ class Scrape(object):
             xmlname = CFG.get('General', 'language') + '.xml'
             zipf.extract(xmlname, self.tmpdir)
 
-        self.seriesxml = parse(path.join(self.tmpdir, xmlname))
-        return self.seriesxml
+        with open(path.join(self.tmpdir, xmlname), 'rt') as f:
+            self.seriesxml = BeautifulSoup(f)
 
     def mapSeriesInfo(self):
         """Using the series information retrieved from getSeriesInfo,
@@ -166,18 +179,17 @@ class Scrape(object):
         """
         assert self.seriesxml, 'Scrape instance has no seriesxml attribute.  Set with scrape.getSeriesInfo'
 
-        ep = (node for node in self.seriesxml.getElementsByTagName('Episode'))
+        ep = [node for node in (n for n in self.seriesxml.find_all('episode'))]
         for fname in self.files:
             guess = guessit.guess_episode_info(path.split(fname)[1])
-            # TODO:  CFG entries for all the weird episode ordering (default to above)
             for epNode in ep:
-                if guess['season'] == int(stripTags(epNode.getElementsByTagName('SeasonNumber')[0].toxml())):
-                    if guess['episodeNumber'] == int(stripTags(epNode.getElementsByTagName('EpisodeNumber')[0].toxml())):
+                if guess['season'] == int(epNode.seasonnumber.string):
+                    if guess['episodeNumber'] == int(epNode.episodenumber.string):
                         newname = {}  # When found, populate iwth information
-                        newname['S'] = stripTags(epNode.getElementsByTagName('SeasonNumber')[0].toxml())
-                        newname['E'] = stripTags(epNode.getElementsByTagName('EpisodeNumber')[0].toxml())
-                        newname['Series'] = stripTags(self.seriesxml.getElementsByTagName('SeriesName')[0].toxml())
-                        newname['Title'] = stripTags(epNode.getElementsByTagName('EpisodeName')[0].toxml())
+                        newname['S'] = epNode.seasonnumber.string
+                        newname['E'] = epNode.episodenumber.string
+                        newname['seriesname'] = self.seriesxml.seriesname.string
+                        newname['episodename'] = epNode.episodename.string
                         newname['ext'] = fname.split('.')[-1]
                         self.filemap[fname] = newname
 
@@ -188,57 +200,26 @@ class Scrape(object):
         return: bool
             True if rename is successful.
         """
+        success = False
+
         self.old_ = {}
         for fname in self.files:
             if self.filemap[fname] is not None:
-                sname = '.'.join(self.filemap[fname]['Series'].title().split(' '))
-                ename = '.'.join(self.filemap[fname]['Title'].title().split(' '))
-                snum = "{0}{n.zfill(2)}".format('S', n=self.filemap[fname]['S'])  # TODO: replace n with config file values
-                enum = "{0}{n.zfill(2)}".format('E', n=self.filemap[fname]['E'])  # TODO: replace n with config file values
+                sname = '.'.join(self.filemap[fname]['seriesname'].title().split(' '))
+                ename = '.'.join(self.filemap[fname]['episodename'].title().split(' '))
+                snum = "{0}{1}".format('S', self.filemap[fname]['S'].zfill(2))  # TODO: replace with config file settings
+                enum = "{0}{1}".format('E', self.filemap[fname]['E'].zfill(2))  # TODO: replace with config file settings
                 newname = '.'.join([sname, snum, enum, ename, self.filemap[fname]['ext']])
                 newname = path.join(path.split(fname)[0], newname)
                 try:
                     rename(fname, newname)
                     self.old_[newname] = fname
+                    success = True
                 except:
                     for key in self.old_:
                         rename(key, self.old_[key])
-                    return False
-        return True
-
-    def getSeriesName(self):
-        """Guess series name based on filename.
-
-        return: string
-        """
-        guesses = [guessit.guess_episode_info(path.split(f)[1]) for f in self.files]
-        guesses = [guess for guess in guesses if 'series' in guess]
-        if guesses == []:
-            return None  # perhaps try looking at metadata?
-        else:
-            high_conf = {}
-            normalCount = {}
-            for guess in guesses:
-                guess['normalized'] = guess['series'].strip().lower()  # Normalize titles
-                if guess['normalized'] in normalCount:
-                    normalCount[guess['normalized']] += 1
-                else:
-                    normalCount[guess['normalized']] = 1
-                    high_conf[guess['normalized']] = 0.
-
-                if guess.confidence('series') > high_conf[guess['normalized']]:
-                    high_conf[guess['normalized']] = guess.confidence('series')  # Reject all but highest-rated title among identical titles
-
-                #   Select title with highest rating / occurrence
-                score = dict((key, high_conf[key] * normalCount[key]) for key in normalCount)
-                bestguess = None
-                oldscore = 0.
-                for key in score:
-                    if score[key] > oldscore:
-                        bestguess = key
-                        olsdcore = score[key]
-        self.seriesname = bestguess
-        return self.seriesname
+                finally:
+                    return success
 
     def getTVDBid(self, thresh):
         """Get TVDB id number for detected series name.
@@ -248,19 +229,18 @@ class Scrape(object):
         """
         hits = self.querySeriesName()
         if not len(hits):
-            print "Failed at 1"  # DEBUG
             self.id = None
             return self.id
 
         # if there's only one result, check lev dist and return if it's within acceptable norms
         if len(hits) == 1:
-            seriesname = stripTags(hits[0].getElementsByTagName('SeriesName')[0].toxml()).strip().lower()
+            hit = hits[0]
+            seriesname = hit.seriesname.string.strip().lower()
             ld = levenshteinDistance(seriesname, self.seriesname)
             if ld <= thresh:
-                self.id = stripTags(hits[0].getElementsByTagName('id')[0].toxml()).encode('ascii')
+                self.id = hit.id.string.encode('ascii')
                 return self.id
             else:
-                print "Failed at 2"  # DEBUG
                 self.id = None
                 return self.id
         else:
@@ -268,14 +248,13 @@ class Scrape(object):
             #   then select option with lowest lev dist.
             levd_dict = {}
             for series in hits:  # These are already parsed.
-                name = stripTags(series.getElementsByTagName('SeriesName')[0].toxml())
+                name = series.SeriesName.string
                 if name.strip().lower() == self.seriesname:
-                    self.id = stripTags(series.getElementsByTagName('id')[0].toxml())
+                    self.id = series.id.string
                     return self.id
                 else:
-                    seriesname = stripTags(series.getElementsByTagName('SeriesName')[0].toxml()).strip().lower()
+                    seriesname = series.SeriesName.string.strip().lower()
                     levd = levenshteinDistance(seriesname, self.seriesname)  # Store lev distance
                     levd_dict[levd] = series
             # Get lowest lev distance here, lookup, assing, return.
-            self.id = stripTags(levd_dict[min(levd_dict.keys())].getElementsByTagName('id')[0].toxml())
-            return self.id
+            self.id = levd_dict[min(levd_dict.keys)].id.string
