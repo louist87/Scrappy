@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import urllib2
 import zipfile
-import curses
 import guessit
 import os.path as path
 from ConfigParser import ConfigParser
