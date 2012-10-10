@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 CFG = ConfigParser()
 CFG.read('scrappy.conf')
 
+
 APIKEY = 'D1BD82E2AE599ADD'
 API = 'http://www.thetvdb.com/api/'
 APIPATH = API + APIKEY
@@ -26,13 +27,19 @@ def getLanguages():
     return [node for node in (l.string for l in lang.find_all('abbreviation'))]
 
 
-def checkLanguageSettings():
+def checkLanguageSettings(lang):
     """Verrify that language code in config file is available in thetvdb API.
+    lang : str
+        2-digit language code, as found in output of getLanguages.
 
     return : bool
         True if language code is available in API.
     """
-    return CFG.get('General', 'language') in getLanguages()
+
+    with open(CFG.get("Language", 'langfile')) as f:
+        languages = BeautifulSoup(f)
+
+    return lang in [l.string for l in languages.find_all('abbreviation')]
 
 
 def levenshteinDistance(s1, s2):
@@ -57,18 +64,10 @@ def levenshteinDistance(s1, s2):
     return previous_row[-1]
 
 
-def listdir_fullpath(d):
-    return [path.join(d, f) for f in listdir(d)]
-
-
-class Scrape(object):
-    """Class to handle file renaming based on TVDB queries.
-
-    Parameters:
-    media : string or list of strings.
-        List of filenames or single directory containing files **of the same series**.
+class Series(object):
+    """Class to handle filename parsing, metadata-mapping and renaming.
     """
-    def __init__(self, media, seriesname=None, tvdbid=None):
+    def __init__(self, media):
         assert media != [] or media != '', 'media variable contains no data.'
         if isinstance(media, str):
             media = [media]
@@ -77,19 +76,19 @@ class Scrape(object):
         fnames = []
         for item in media:
             if path.isdir(item):
-                for fullpath in listdir_fullpath(item):
+                for fullpath in self.listdir_fullpath(item):
                     fnames.append(fullpath)
             elif path.isfile(item):
                 fnames.append(item)
 
-        assert False not in [path.isfile(f) for f in fnames], 'One or more files could not be reached.  Check path names!'
+        assert False not in [path.isfile(f) for f in fnames] and fnames != [], 'One or more files could not be reached.  Check path names!'
         self.files = fnames
         self.filemap = dict((fname, None) for fname in self.files)
-        self.seriesname = seriesname  # Do not use this to set filename -- data is normalized!  Get data from XML instead.
-        self.id = tvdbid
-        self.seriesxml = None  # placeholder for XML object from TVDB
+        self.seriesname = None  # Don't change this.  Data must remain normalized!
 
-        self.tmpdir = mkdtemp()
+    @staticmethod
+    def listdir_fullpath(d):
+        return [path.join(d, f) for f in listdir(d)]
 
     def getSeriesName(self):
         """Guess series name based on filename.
@@ -126,18 +125,83 @@ class Scrape(object):
 
         self.seriesname = bestguess
 
-    def querySeriesName(self):
+    def mapSeriesInfo(self, seriesxml):
+        """Using the series information retrieved from getSeriesInfo,
+        Associate XML node to a file based on file name and metadata.
+        """
+        assert seriesxml, 'Scrape instance has no seriesxml attribute.  Set with scrape.getSeriesInfo'
+
+        ep = [node for node in (n for n in seriesxml.find_all('episode'))]
+        for fname in self.files:
+            guess = guessit.guess_episode_info(path.split(fname)[1])
+            for epNode in ep:
+                if guess['season'] == int(epNode.seasonnumber.string):
+                    if guess['episodeNumber'] == int(epNode.episodenumber.string):
+                        newname = {}  # When found, populate iwth information
+                        newname['S'] = epNode.seasonnumber.string
+                        newname['E'] = epNode.episodenumber.string
+                        newname['seriesname'] = seriesxml.seriesname.string
+                        newname['episodename'] = epNode.episodename.string
+                        newname['ext'] = fname.split('.')[-1]
+                        self.filemap[fname] = newname
+
+    def renameFiles(self):
+        """Apply pending renames in self.filemap.  All file renaming
+        is atomic.  Old filenames are stored in self.old_
+
+        return: bool
+            True if rename is successful.
+        """
+        success = False
+
+        self.old_ = {}
+        for fname in self.files:
+            if self.filemap[fname] is not None:
+                sname = '.'.join(self.filemap[fname]['seriesname'].title().split(' '))
+                ename = '.'.join(self.filemap[fname]['episodename'].title().split(' '))
+                snum = "{0}{1}".format('S', self.filemap[fname]['S'].zfill(2))  # TODO: replace with config file settings
+                enum = "{0}{1}".format('E', self.filemap[fname]['E'].zfill(2))  # TODO: replace with config file settings
+                newname = '.'.join([sname, snum, enum, ename, self.filemap[fname]['ext']])
+                newname = path.join(path.split(fname)[0], newname)
+                try:
+                    rename(fname, newname)
+                    self.old_[newname] = fname
+                    success = True
+                except:
+                    for key in self.old_:
+                        rename(key, self.old_[key])
+                finally:
+                    return success
+
+
+class Scrape(object):
+    """Class to handle file renaming based on TVDB queries.
+
+    Parameters:
+    media : string or list of strings.
+        List of filenames or single directory containing files **of the same series**.
+    """
+    badresp_msg = "Bad response when querying for {0}: <{1}>"
+
+    def __init__(self, tvdbid=None, lang=CFG.get('General', 'language')):
+        assert checkLanguageSettings(lang), 'Invalid language setting.'
+
+        self.id = tvdbid
+        self.language = lang
+        self.seriesxml = None
+        self.tmpdir = mkdtemp()
+
+    def querySeriesName(self, seriesname):
         """Query THETVDB for series name.
 
         return:
-            List
+            BeautifulSoup instance
         """
-        assert self.seriesname, 'Scrape instance has no seriesname attribute.  Did you run Scrape.getSeriesName?'
+        assert seriesname, 'Scrape instance has no seriesname attribute.  Did you run Scrape.getSeriesName?'
 
-        payload = {'seriesname': self.seriesname, 'language': CFG.get('General', 'language')}
+        payload = {'seriesname': seriesname, 'language': self.language}
         resp = requests.get(path.join(API, "GetSeries.php"), params=payload)
-        if resp.status_code != requests.codes.ok:
-            return ()
+        assert resp.status_code == requests.codes.ok, self.badresp_msg.format("series name", resp.status_code)
 
         return BeautifulSoup(resp.content).find_all('series')
 
@@ -173,61 +237,12 @@ class Scrape(object):
         with open(path.join(self.tmpdir, xmlname), 'rt') as f:
             self.seriesxml = BeautifulSoup(f)
 
-    def mapSeriesInfo(self):
-        """Using the series information retrieved from getSeriesInfo,
-        Associate XML node to a file based on file name and metadata.
-        """
-        assert self.seriesxml, 'Scrape instance has no seriesxml attribute.  Set with scrape.getSeriesInfo'
+        return self.seriesxml
 
-        ep = [node for node in (n for n in self.seriesxml.find_all('episode'))]
-        for fname in self.files:
-            guess = guessit.guess_episode_info(path.split(fname)[1])
-            for epNode in ep:
-                if guess['season'] == int(epNode.seasonnumber.string):
-                    if guess['episodeNumber'] == int(epNode.episodenumber.string):
-                        newname = {}  # When found, populate iwth information
-                        newname['S'] = epNode.seasonnumber.string
-                        newname['E'] = epNode.episodenumber.string
-                        newname['seriesname'] = self.seriesxml.seriesname.string
-                        newname['episodename'] = epNode.episodename.string
-                        newname['ext'] = fname.split('.')[-1]
-                        self.filemap[fname] = newname
-
-    def renameFiles(self):
-        """Apply pending renames in self.filemap.  All file renaming
-        is atomic.  Old filenames are stored in self.old_
-
-        return: bool
-            True if rename is successful.
-        """
-        success = False
-
-        self.old_ = {}
-        for fname in self.files:
-            if self.filemap[fname] is not None:
-                sname = '.'.join(self.filemap[fname]['seriesname'].title().split(' '))
-                ename = '.'.join(self.filemap[fname]['episodename'].title().split(' '))
-                snum = "{0}{1}".format('S', self.filemap[fname]['S'].zfill(2))  # TODO: replace with config file settings
-                enum = "{0}{1}".format('E', self.filemap[fname]['E'].zfill(2))  # TODO: replace with config file settings
-                newname = '.'.join([sname, snum, enum, ename, self.filemap[fname]['ext']])
-                newname = path.join(path.split(fname)[0], newname)
-                try:
-                    rename(fname, newname)
-                    self.old_[newname] = fname
-                    success = True
-                except:
-                    for key in self.old_:
-                        rename(key, self.old_[key])
-                finally:
-                    return success
-
-    def getTVDBid(self, thresh):
+    def getTVDBid(self, seriesname, thresh):
         """Get TVDB id number for detected series name.
-
-        return : {string, None}
-            Return either ID number or None if none is found.
         """
-        hits = self.querySeriesName()
+        hits = self.querySeriesName(seriesname.strip().lower())
         if not len(hits):
             self.id = None
             return self.id
@@ -235,8 +250,8 @@ class Scrape(object):
         # if there's only one result, check lev dist and return if it's within acceptable norms
         if len(hits) == 1:
             hit = hits[0]
-            seriesname = hit.seriesname.string.strip().lower()
-            ld = levenshteinDistance(seriesname, self.seriesname)
+            sname = hit.seriesname.string.strip().lower()
+            ld = levenshteinDistance(sname, seriesname)
             if ld <= thresh:
                 self.id = hit.id.string.encode('ascii')
                 return self.id
@@ -249,12 +264,12 @@ class Scrape(object):
             levd_dict = {}
             for series in hits:  # These are already parsed.
                 name = series.SeriesName.string
-                if name.strip().lower() == self.seriesname:
+                if name.strip().lower() == seriesname:
                     self.id = series.id.string
                     return self.id
                 else:
-                    seriesname = series.SeriesName.string.strip().lower()
-                    levd = levenshteinDistance(seriesname, self.seriesname)  # Store lev distance
+                    sname = series.SeriesName.string.strip().lower()
+                    levd = levenshteinDistance(sname, seriesname)  # Store lev distance
                     levd_dict[levd] = series
             # Get lowest lev distance here, lookup, assing, return.
             self.id = levd_dict[min(levd_dict.keys)].id.string
