@@ -8,9 +8,6 @@ import requests
 import guessit
 from bs4 import BeautifulSoup
 
-CFG = ConfigParser()
-CFG.read('scrappy.conf')
-
 
 APIKEY = 'D1BD82E2AE599ADD'
 API = 'http://www.thetvdb.com/api/'
@@ -27,16 +24,19 @@ def getLanguages():
     return [node for node in (l.string for l in lang.find_all('abbreviation'))]
 
 
-def checkLanguageSettings(lang):
+def checkLanguageSettings(lang, langfile):
     """Verrify that language code in config file is available in thetvdb API.
     lang : str
         2-digit language code, as found in output of getLanguages.
+
+    langfile : str
+        language.xml file location
 
     return : bool
         True if language code is available in API.
     """
 
-    with open(CFG.get("Language", 'langfile')) as f:
+    with open(langfile) as f:
         languages = BeautifulSoup(f)
 
     return lang in [l.string for l in languages.find_all('abbreviation')]
@@ -186,7 +186,7 @@ class Scrape(object):
     """
     badresp_msg = "Bad response when querying for {0}: <{1}>"
 
-    def __init__(self, tvdbid=None, lang=CFG.get('General', 'language')):
+    def __init__(self, tvdbid=None, lang):
         assert checkLanguageSettings(lang), 'Invalid language setting.'
 
         self.id = tvdbid
@@ -231,7 +231,7 @@ class Scrape(object):
 
         return flag
 
-    def getSeriesInfo(self):
+    def getSeriesInfo(self, lang):
         """Get information on the series once it has been identified (self.id is not None)
 
         return:
@@ -239,12 +239,12 @@ class Scrape(object):
         """
         assert self.id, "Scrape instance has no id attribute."
 
-        zfname = CFG.get('General', 'language') + ".zip"
+        zfname = lang + ".zip"
         searchstring = path.join(APIPATH, 'series', self.id, 'all', zfname)
 
         assert self.urlretrieve(searchstring, path.join(self.tmpdir, zfname)), 'Could not fetch series information.'
         with zipfile.ZipFile(path.join(self.tmpdir, zfname)) as zipf:
-            xmlname = CFG.get('General', 'language') + '.xml'
+            xmlname = lang + '.xml'
             zipf.extract(xmlname, self.tmpdir)
 
         with open(path.join(self.tmpdir, xmlname), 'rt') as f:
