@@ -65,7 +65,10 @@ def levenshteinDistance(s1, s2):
 
 
 class Series(object):
-    """Class to handle filename parsing, metadata-mapping and renaming.
+    """Class to encapsulate file(s) or directorie(s) containing media files from a
+    single series.
+
+    Series provides an interface for filesystem operations on these local files.
     """
     def __init__(self, media):
         assert media != [] or media != '', 'media variable contains no data.'
@@ -175,7 +178,7 @@ class Series(object):
 
 
 class Scrape(object):
-    """Class to handle file renaming based on TVDB queries.
+    """Class to encapsulate TVDB queries.
 
     Parameters:
     media : string or list of strings.
@@ -206,6 +209,16 @@ class Scrape(object):
         return BeautifulSoup(resp.content).find_all('series')
 
     def urlretrieve(self, url, outdir):
+        """Retrieve binary file at a given url.
+
+        url : str
+            url pointing to file to retreive
+        outdir : str
+            output directory
+
+        return:  bool
+            True if successful
+        """
         flag = False
 
         resp = requests.get(url)
