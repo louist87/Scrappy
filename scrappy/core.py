@@ -101,7 +101,7 @@ class Series(object):
         return: string
         """
         guesses = [guessit.guess_episode_info(os.path.split(f)[1]) for f in self.files]
-        guesses = [guess for guess in guesses if 'series' in guess]
+        guesses = [guess for guess in guesses if 'series' in guess]  # list of dicts containing guessed information
         if guesses == []:
             print "DEBUG WARNING:  no guesses found!"  # DEBUG
             return None  # perhaps try looking at metadata?
@@ -120,15 +120,9 @@ class Series(object):
                     high_conf[guess['normalized']] = guess.confidence('series')  # Reject all but highest-rated title among identical titles
 
                 #   Select title with highest rating / occurrence
-                score = dict((key, high_conf[key] * normalCount[key]) for key in normalCount)
-                bestguess = None
-                oldscore = 0.
-                for key in score:
-                    if score[key] > oldscore:
-                        bestguess = key
-                        oldscore = score[key]
+                ranked = dict((high_conf[series] * normalCount[series], series) for series in normalCount)
 
-        self.seriesname = bestguess
+        self.seriesname = ranked[sorted(ranked.keys(), reverse=True)[0]]
 
     def mapSeriesInfo(self, seriesxml):
         """Using the series information retrieved from getSeriesInfo,
