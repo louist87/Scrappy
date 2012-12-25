@@ -103,7 +103,7 @@ class Series(object):
         """
 
         guesses = []
-        for g in (guessit.guess_episode_info(os.path.split(f)[1]) for f in self.files):
+        for g in (guessit.guess_episode_info(self.getPathElement(f)) for f in self.files):
             if 'series' in g:
                 guesses.append(g)  # dictionary of guessed information
 
@@ -132,9 +132,9 @@ class Series(object):
         """
         assert seriesxml, 'Scrape instance has no seriesxml attribute.  Set with scrape.getSeriesInfo'
 
-        ep = [node for node in (n for n in seriesxml.find_all('episode'))]
+        ep = [node for node in (n for n in seriesxml.find_all('episode'))]  # episode nodes
         for fname in self.files:
-            guess = guessit.guess_episode_info(os.path.split(fname)[1])
+            guess = guessit.guess_episode_info(self.getPathElement(fname))
             for epNode in ep:
                 if guess['season'] == int(epNode.seasonnumber.string):
                     if guess['episodeNumber'] == int(epNode.episodenumber.string):
@@ -163,7 +163,7 @@ class Series(object):
                 snum = "{0}{1}".format('S', self.filemap[fname]['S'].zfill(2))  # TODO: replace with config file settings
                 enum = "{0}{1}".format('E', self.filemap[fname]['E'].zfill(2))  # TODO: replace with config file settings
                 newname = '.'.join([sname, snum, enum, ename, self.filemap[fname]['ext']])
-                newname = os.path.join(os.path.split(fname)[0], newname)
+                newname = os.path.join(self.getPathElement(fname, False), newname)
                 try:
                     os.rename(fname, newname)
                     self.old_[newname] = fname
@@ -173,6 +173,20 @@ class Series(object):
                         os.rename(key, self.old_[key])
                 finally:
                     return success
+
+    @staticmethod
+    def getPathElement(path, fname=True):
+        """Retrieve either the file name or the resident directory
+        of a file.
+
+        path : str
+            /path/to/file.ext
+
+        fname : bool
+            If true, return file name
+            else, return resident directory of file
+        """
+        return os.path.split(path)[fname]
 
 
 class Scrape(object):
