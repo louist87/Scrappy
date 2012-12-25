@@ -145,34 +145,75 @@ class Series(object):
                                            'ext': fname.split('.')[-1]
                                           }
 
-    def renameFiles(self):
+    def renameFiles(self, formatter=None, test=False):
         """Apply pending renames in self.filemap.  All file renaming
         is atomic.  Old filenames are stored in self.old_
+
+        formatter : dict
+            Dictionary used to format file names.
+            The formatter **must** contain a key called 'order', which contains
+                the keys that will be used in the construction of the new file name.
+                Elements will be in the same order as this sequence.
+
+            The formatter may then contain arbitrarily named keys that map to a tuple containing
+                an associated function **AND** the names of the keys in a dictionary returned from
+                `guessit.guess_episode_info` that map to its parameters.
+
+                EXAMPLES:
+                *  formatter['ecode'] = (lambda s, e: s.capitalize() + e.capitalize(), ('S', 'E'))
+                *  formatter['sname'] - (lambda s: s.title(), 'seriesname')
+
+            Lastly, the formatter may **optionally** contain a 'sep' field containing a separator that
+                will delimit the above fields in the new file name.  If none is provided, the separator
+                will default to '.'
+
+        test : bool
+            If True, no files are modified, but verbose output is provided for debugging
 
         return: bool
             True if rename is successful.
         """
         success = True
-
         self.old_ = {}
+
+        if not formatter:
+            formatter = {}
+            formatter['sname'] = (self.formatDotTitle, 'seriesname')  # (fn, keys needed to get params from self.filemap[fname])
+            formatter['ename'] = (self.formatDotTitle, 'episodename')
+            formatter['ecode'] = (self.formatSXXEXX, ('S', 'E'))
+            formatter['order'] = ('sname', 'ecode', 'ename')  # required
+            formatter['sep'] = '.'  # can be omitted. defaults to '.' in formatFileName
+
         try:
             for fname in self.files:
                 if self.filemap[fname] is not None:
-                    sname = '.'.join(self.filemap[fname]['seriesname'].title().split(' '))
-                    ename = '.'.join(self.filemap[fname]['episodename'].title().split(' '))
-                    snum = "{0}{1}".format('S', self.filemap[fname]['S'].zfill(2))  # TODO: replace with config file settings
-                    enum = "{0}{1}".format('E', self.filemap[fname]['E'].zfill(2))  # TODO: replace with config file settings
-                    newname = '.'.join([sname, snum, enum, ename, self.filemap[fname]['ext']])
-                    newname = os.path.join(self.getPathElement(fname, False), newname)
-
-                    os.rename(fname, newname)
-                    self.old_[newname] = fname
+                    newname = self.formatFileName(self.filemap[fname], formatter)
+                    if not test:
+                        os.rename(fname, newname)
+                        self.old_[newname] = fname
+                    else:
+                        print newname
         except:
+            print "DEBUG WARNING: in exception block"  # DEBUG
             success = False
-            for key in self.old_:
-                os.rename(key, self.old_[key])
+            if not test:
+                for key in self.old_:
+                    os.rename(key, self.old_[key])
         finally:
             return success
+
+    def formatFileName(self, fdata, formatter):
+        """Format data about a media file with a formatter
+        """
+        prep = {}
+        for field in formatter['order']:
+            fn, args = formatter[field]
+            if not hasattr(args, '__iter__'):
+                args = (args,)
+
+            prep[field] = fn(*[fdata[ar] for ar in args])
+
+        return formatter.get('sep', '.').join([prep[k] for k in formatter['order']] + [fdata['ext']])
 
     @staticmethod
     def getPathElement(path, fname=True):
@@ -187,6 +228,19 @@ class Series(object):
             else, return resident directory of file
         """
         return os.path.split(path)[fname]
+
+    @staticmethod
+    def formatDotTitle(s):
+        """Convert "example title" to "Example.Title"
+        """
+        return '.'.join(s.title().split(' '))
+
+    @staticmethod
+    def formatSXXEXX(season, episode):
+        """Produce episode numbering (ecode) following the SXXEXX convention:
+        e.g.:  S01E23
+        """
+        return 'S{0}E{1}'.format(season.zfill(2), episode.zfill(2))
 
 
 class Scrape(object):
