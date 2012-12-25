@@ -92,7 +92,8 @@ class Series(object):
 
         assert len(fnames), 'media contains no data.'
         assert False not in [os.path.isfile(f) for f in fnames], 'One or more files could not be reached.  Check path names!'
-        return fnames
+
+        return [f for f in fnames if 'video' in guessit.guess_file_info(f, 'autodetect')['mimetype']]
 
     def getSeriesName(self):
         """Guess series name based on filename.
