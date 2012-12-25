@@ -7,6 +7,7 @@ from glob import glob
 from itertools import chain
 from tempfile import mkdtemp
 from bs4 import BeautifulSoup
+from collections import defaultdict
 
 
 APIKEY = 'D1BD82E2AE599ADD'
@@ -96,28 +97,29 @@ class Series(object):
         return [f for f in fnames if 'video' in guessit.guess_file_info(f, 'autodetect')['mimetype']]
 
     def getSeriesName(self):
-        """Guess series name based on filename.
+        """Guess series based on agreement between infered series names for each file.
 
         return: string
         """
-        guesses = [guessit.guess_episode_info(os.path.split(f)[1]) for f in self.files]
-        guesses = [guess for guess in guesses if 'series' in guess]  # list of dicts containing guessed information
+
+        guesses = []
+        for g in (guessit.guess_episode_info(os.path.split(f)[1]) for f in self.files):
+            if 'series' in g:
+                guesses.append(g)  # dictionary of guessed information
+
         if guesses == []:
             print "DEBUG WARNING:  no guesses found!"  # DEBUG
             return None  # perhaps try looking at metadata?
         else:
-            high_conf = {}
-            normalCount = {}
+            high_conf = defaultdict(float)
+            normalCount = defaultdict(int)
             for guess in guesses:
-                guess['normalized'] = guess['series'].strip().lower()  # Normalize titles
-                if guess['normalized'] in normalCount:
-                    normalCount[guess['normalized']] += 1
-                else:
-                    normalCount[guess['normalized']] = 1
-                    high_conf[guess['normalized']] = 0.
+                ntitle = guess['series'].strip().lower()  # normalize title
 
-                if guess.confidence('series') > high_conf[guess['normalized']]:
-                    high_conf[guess['normalized']] = guess.confidence('series')  # Reject all but highest-rated title among identical titles
+                normalCount[ntitle] += 1
+
+                if guess.confidence('series') > high_conf[ntitle]:  # will initialize high_conf if no key
+                    high_conf[ntitle] = guess.confidence('series')  # keep highest confidence for a given title-guess
 
                 #   Select title with highest rating / occurrence
                 ranked = dict((high_conf[series] * normalCount[series], series) for series in normalCount)
