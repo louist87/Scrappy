@@ -81,7 +81,7 @@ class Series(object):
         if isinstance(media, str):
             media = (media,)
 
-        media = chain(glob(m) for m in media)
+        media = chain(*[glob(m) for m in media])
 
         fnames = []
         for path in media:
