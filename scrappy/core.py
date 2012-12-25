@@ -1,11 +1,11 @@
 #!/usr/bin/env python
+import os
 import zipfile
-import os.path as path
-from os import rename, listdir
-from ConfigParser import ConfigParser
-from tempfile import mkdtemp
-import requests
 import guessit
+import requests
+from glob import glob
+from itertools import chain
+from tempfile import mkdtemp
 from bs4 import BeautifulSoup
 
 
@@ -19,7 +19,7 @@ def getLanguages():
 
     returns : list
     """
-    resp = requests.get(path.join(APIPATH, 'languages.xml'))
+    resp = requests.get(os.path.join(APIPATH, '/languages.xml'))
     lang = BeautifulSoup(resp.content)
     return [node for node in (l.string for l in lang.find_all('abbreviation'))]
 
@@ -71,34 +71,35 @@ class Series(object):
     Series provides an interface for filesystem operations on these local files.
     """
     def __init__(self, media):
-        assert media != [] or media != '', 'media variable contains no data.'
-        if isinstance(media, str):
-            media = [media]
-
-        # Flatten directories, get full paths for all files.
-        fnames = []
-        for item in media:
-            if path.isdir(item):
-                for fullpath in self.listdir_fullpath(item):
-                    fnames.append(fullpath)
-            elif path.isfile(item):
-                fnames.append(item)
-
-        assert False not in [path.isfile(f) for f in fnames] and fnames != [], 'One or more files could not be reached.  Check path names!'
-        self.files = fnames
+        self.files = self.processPaths(media)
         self.filemap = dict((fname, None) for fname in self.files)
         self.seriesname = None  # Don't change this.  Data must remain normalized!
 
-    @staticmethod
-    def listdir_fullpath(d):
-        return [path.join(d, f) for f in listdir(d)]
+    def processPaths(self, media):
+        """Validate paths and format into a flat list of full paths.
+        """
+        if isinstance(media, str):
+            media = (media,)
+
+        media = chain(glob(m) for m in media)
+
+        fnames = []
+        for path in media:
+            if os.path.isdir(path):
+                fnames.extend(glob(os.path.join(path, '*')))
+            elif os.path.isfile(path):
+                fnames.append(path)
+
+        assert len(fnames), 'media contains no data.'
+        assert False not in [os.path.isfile(f) for f in fnames], 'One or more files could not be reached.  Check path names!'
+        return fnames
 
     def getSeriesName(self):
         """Guess series name based on filename.
 
         return: string
         """
-        guesses = [guessit.guess_episode_info(path.split(f)[1]) for f in self.files]
+        guesses = [guessit.guess_episode_info(os.path.split(f)[1]) for f in self.files]
         guesses = [guess for guess in guesses if 'series' in guess]
         if guesses == []:
             print "DEBUG WARNING:  no guesses found!"  # DEBUG
@@ -136,7 +137,7 @@ class Series(object):
 
         ep = [node for node in (n for n in seriesxml.find_all('episode'))]
         for fname in self.files:
-            guess = guessit.guess_episode_info(path.split(fname)[1])
+            guess = guessit.guess_episode_info(os.path.split(fname)[1])
             for epNode in ep:
                 if guess['season'] == int(epNode.seasonnumber.string):
                     if guess['episodeNumber'] == int(epNode.episodenumber.string):
@@ -165,14 +166,14 @@ class Series(object):
                 snum = "{0}{1}".format('S', self.filemap[fname]['S'].zfill(2))  # TODO: replace with config file settings
                 enum = "{0}{1}".format('E', self.filemap[fname]['E'].zfill(2))  # TODO: replace with config file settings
                 newname = '.'.join([sname, snum, enum, ename, self.filemap[fname]['ext']])
-                newname = path.join(path.split(fname)[0], newname)
+                newname = os.path.join(os.path.split(fname)[0], newname)
                 try:
-                    rename(fname, newname)
+                    os.rename(fname, newname)
                     self.old_[newname] = fname
                     success = True
                 except:
                     for key in self.old_:
-                        rename(key, self.old_[key])
+                        os.rename(key, self.old_[key])
                 finally:
                     return success
 
@@ -186,8 +187,8 @@ class Scrape(object):
     """
     badresp_msg = "Bad response when querying for {0}: <{1}>"
 
-    def __init__(self, tvdbid=None, lang):
-        assert checkLanguageSettings(lang), 'Invalid language setting.'
+    def __init__(self, tvdbid=None, lang='en'):
+        # assert checkLanguageSettings(lang), 'Invalid language setting.'
 
         self.id = tvdbid
         self.language = lang
@@ -203,7 +204,7 @@ class Scrape(object):
         assert seriesname, 'Scrape instance has no seriesname attribute.  Did you run Scrape.getSeriesName?'
 
         payload = {'seriesname': seriesname, 'language': self.language}
-        resp = requests.get(path.join(API, "GetSeries.php"), params=payload)
+        resp = requests.get(os.path.join(API, "GetSeries.php"), params=payload)
         assert resp.status_code == requests.codes.ok, self.badresp_msg.format("series name", resp.status_code)
 
         return BeautifulSoup(resp.content).find_all('series')
@@ -231,7 +232,7 @@ class Scrape(object):
 
         return flag
 
-    def getSeriesInfo(self, lang):
+    def getSeriesInfo(self, lang='en'):
         """Get information on the series once it has been identified (self.id is not None)
 
         return:
@@ -240,14 +241,14 @@ class Scrape(object):
         assert self.id, "Scrape instance has no id attribute."
 
         zfname = lang + ".zip"
-        searchstring = path.join(APIPATH, 'series', self.id, 'all', zfname)
+        searchstring = os.path.join(APIPATH, 'series', self.id, 'all', zfname)
 
-        assert self.urlretrieve(searchstring, path.join(self.tmpdir, zfname)), 'Could not fetch series information.'
-        with zipfile.ZipFile(path.join(self.tmpdir, zfname)) as zipf:
+        assert self.urlretrieve(searchstring, os.path.join(self.tmpdir, zfname)), 'Could not fetch series information.'
+        with zipfile.ZipFile(os.path.join(self.tmpdir, zfname)) as zipf:
             xmlname = lang + '.xml'
             zipf.extract(xmlname, self.tmpdir)
 
-        with open(path.join(self.tmpdir, xmlname), 'rt') as f:
+        with open(os.path.join(self.tmpdir, xmlname), 'rt') as f:
             self.seriesxml = BeautifulSoup(f)
 
         return self.seriesxml
