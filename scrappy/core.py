@@ -121,8 +121,8 @@ class Series(object):
                 if guess.confidence('series') > high_conf[ntitle]:  # will initialize high_conf if no key
                     high_conf[ntitle] = guess.confidence('series')  # keep highest confidence for a given title-guess
 
-                #   Select title with highest rating / occurrence
-                ranked = dict((high_conf[series] * normalCount[series], series) for series in normalCount)
+            #   Select title with highest rating / occurrence
+            ranked = dict((high_conf[series] * normalCount[series], series) for series in normalCount)
 
         self.seriesname = ranked[sorted(ranked.keys(), reverse=True)[0]]
 
@@ -132,19 +132,18 @@ class Series(object):
         """
         assert seriesxml, 'Scrape instance has no seriesxml attribute.  Set with scrape.getSeriesInfo'
 
-        ep = [node for node in (n for n in seriesxml.find_all('episode'))]  # episode nodes
+        epNodes = [node for node in (n for n in seriesxml.find_all('episode'))]  # episode nodes
         for fname in self.files:
             guess = guessit.guess_episode_info(self.getPathElement(fname))
-            for epNode in ep:
-                if guess['season'] == int(epNode.seasonnumber.string):
-                    if guess['episodeNumber'] == int(epNode.episodenumber.string):
-                        newname = {}  # When found, populate iwth information
-                        newname['S'] = epNode.seasonnumber.string
-                        newname['E'] = epNode.episodenumber.string
-                        newname['seriesname'] = seriesxml.seriesname.string
-                        newname['episodename'] = epNode.episodename.string
-                        newname['ext'] = fname.split('.')[-1]
-                        self.filemap[fname] = newname
+            for en in epNodes:
+                if guess['season'] == int(en.seasonnumber.string) and guess['episodeNumber'] == int(en.episodenumber.string):
+                    self.filemap[fname] = {
+                                           'S': en.seasonnumber.string,
+                                           'E': en.episodenumber.string,
+                                           'seriesname': seriesxml.seriesname.string,
+                                           'episodename': en.episodename.string,
+                                           'ext': fname.split('.')[-1]
+                                          }
 
     def renameFiles(self):
         """Apply pending renames in self.filemap.  All file renaming
@@ -153,26 +152,27 @@ class Series(object):
         return: bool
             True if rename is successful.
         """
-        success = False
+        success = True
 
         self.old_ = {}
-        for fname in self.files:
-            if self.filemap[fname] is not None:
-                sname = '.'.join(self.filemap[fname]['seriesname'].title().split(' '))
-                ename = '.'.join(self.filemap[fname]['episodename'].title().split(' '))
-                snum = "{0}{1}".format('S', self.filemap[fname]['S'].zfill(2))  # TODO: replace with config file settings
-                enum = "{0}{1}".format('E', self.filemap[fname]['E'].zfill(2))  # TODO: replace with config file settings
-                newname = '.'.join([sname, snum, enum, ename, self.filemap[fname]['ext']])
-                newname = os.path.join(self.getPathElement(fname, False), newname)
-                try:
+        try:
+            for fname in self.files:
+                if self.filemap[fname] is not None:
+                    sname = '.'.join(self.filemap[fname]['seriesname'].title().split(' '))
+                    ename = '.'.join(self.filemap[fname]['episodename'].title().split(' '))
+                    snum = "{0}{1}".format('S', self.filemap[fname]['S'].zfill(2))  # TODO: replace with config file settings
+                    enum = "{0}{1}".format('E', self.filemap[fname]['E'].zfill(2))  # TODO: replace with config file settings
+                    newname = '.'.join([sname, snum, enum, ename, self.filemap[fname]['ext']])
+                    newname = os.path.join(self.getPathElement(fname, False), newname)
+
                     os.rename(fname, newname)
                     self.old_[newname] = fname
-                    success = True
-                except:
-                    for key in self.old_:
-                        os.rename(key, self.old_[key])
-                finally:
-                    return success
+        except:
+            success = False
+            for key in self.old_:
+                os.rename(key, self.old_[key])
+        finally:
+            return success
 
     @staticmethod
     def getPathElement(path, fname=True):
