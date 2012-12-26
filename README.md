@@ -21,7 +21,7 @@ scrape = scrappy.Scrape('its always sunny in philadelphia 101.mkv')
 # Query TheTVDB for data and rename
 err = 3  # Max error (number of edits) to accept a hit
 if scrape.getSeriesInfo(err):
-    scrape.renameFiles(test=True)  # commit changes
+    scrape.renameFiles(test=True)  # test file rename (no changes committed when test == True)
 ```
 
 ###Advanced API Use
