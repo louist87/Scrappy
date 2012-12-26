@@ -30,7 +30,9 @@ It'S.Always.Sunny.In.Philadelphia.S01E01.The.Gang.Gets.Racist.mkv
 
 ###Advanced API Use
 
-You can pass wildcards to the `Scrape` constructor:
+You can pass wildcards to the `Scrape` constructor.  Note that **all** video files included in the wildcard (or sequence, as per the examples below) **must be from the same series.**
+
+Again, for good measure:  Create a `Scrape` object **for each series**.  If you don't do this, you *will* screw up your video library, and I *will* call you an idiot.
 
 ```python
 scrape = scrappy.Scrape('*.mkv')
