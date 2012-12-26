@@ -187,7 +187,7 @@ class Scrape(object):
             True if rename is successful.
         """
         success = True
-        self.old_ = {}
+        old = {}
 
         try:
             for fname in self.files:
@@ -195,17 +195,30 @@ class Scrape(object):
                     newname = self.formatFileName(self.filemap[fname], formatter)
                     if not test:
                         os.rename(fname, newname)
-                        self.old_[newname] = fname
+                        old[newname] = fname
                     else:
                         print newname
+
+            self.old_ = old  # dynamically add attribute
         except:
             print "DEBUG WARNING: in exception block"  # DEBUG
             success = False
             if not test:
-                for key in self.old_:
-                    os.rename(key, self.old_[key])
+                self.revertFilenames(_override=old)
+
         finally:
             return success
+
+    def revertFilenames(self, _override=None):
+        """Undo a file rename.  Function performs no action unless files have been renamed
+
+        _override : dict
+            For internal use.  Do not use.
+        """
+        if hasattr(self, 'old_') or _override:
+            old = _override or self.old_
+            for key in old:
+                os.rename(key, old[key])
 
     def formatFileName(self, fdata, formatter):
         """Format data about a media file with a formatter
@@ -220,8 +233,7 @@ class Scrape(object):
 
         return formatter.get('sep', '.').join([prep[k] for k in formatter['order']] + [fdata['ext']])
 
-    @staticmethod
-    def getPathElement(path, fname=True):
+    def getPathElement(self, path, fname=True):
         """Retrieve either the file name or the resident directory
         of a file.
 
@@ -271,13 +283,15 @@ class Scrape(object):
 
         return flag
 
-    def getSeriesInfo(self, lang='en'):
+    def getSeriesInfo(self, thresh, lang='en'):
         """Get information on the series once it has been identified (self.id is not None)
 
-        return:
-            Parsed XML object.
+        return : bool
+            True if successful
         """
-        assert self.id, "Scrape instance has no id attribute."
+        self.getTVDBid(thresh)
+        if not self.id:
+            return False
 
         zfname = lang + ".zip"
         searchstring = os.path.join(APIPATH, 'series', self.id, 'all', zfname)
@@ -290,7 +304,8 @@ class Scrape(object):
         with open(os.path.join(self.tmpdir, xmlname), 'rt') as f:
             self.seriesxml = BeautifulSoup(f)
 
-        return self.seriesxml
+        self.mapSeriesInfo()
+        return True
 
     def getTVDBid(self, thresh):
         """Get TVDB id number for detected series name.
@@ -298,7 +313,6 @@ class Scrape(object):
         hits = self.querySeriesName(self.seriesname.strip().lower())
         if not len(hits):
             self.id = None
-            return self.id
 
         # if there's only one result, check lev dist and return if it's within acceptable norms
         if len(hits) == 1:
@@ -307,10 +321,8 @@ class Scrape(object):
             ld = levenshteinDistance(sname, self.seriesname)
             if ld <= thresh:
                 self.id = hit.id.string.encode('ascii')
-                return self.id
             else:
                 self.id = None
-                return self.id
         else:
             # else it's longer loop through, checking for exact match (normalized -> stripped/lowered).  If none is found, store lev dist somewhere
             #   then select option with lowest lev dist.
@@ -319,7 +331,6 @@ class Scrape(object):
                 name = series.SeriesName.string
                 if name.strip().lower() == self.seriesname:
                     self.id = series.id.string
-                    return self.id
                 else:
                     sname = series.SeriesName.string.strip().lower()
                     levd = levenshteinDistance(sname, self.seriesname)  # Store lev distance
