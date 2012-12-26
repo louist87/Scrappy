@@ -138,7 +138,8 @@ class Scrape(object):
             #   Select title with highest rating / occurrence
             ranked = dict((high_conf[series] * normalCount[series], series) for series in normalCount)
 
-        self.seriesname = ranked[sorted(ranked.keys(), reverse=True)[0]]
+        self.seriesname = ranked[sorted(ranked.keys(), reverse=True)[0]] or None
+        return self.SeriesName
 
     def mapSeriesInfo(self):
         """Using the series information retrieved from getSeriesInfo,
@@ -290,7 +291,9 @@ class Scrape(object):
         return : bool
             True if successful
         """
-        self.getTVDBid(thresh)
+        if not self.id:
+            self.getTVDBid(thresh)
+
         if not self.id:
             return False
 
