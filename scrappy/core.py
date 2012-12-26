@@ -3,6 +3,7 @@ import os
 import zipfile
 import guessit
 import requests
+import formatters
 from glob import glob
 from itertools import chain
 from tempfile import mkdtemp
@@ -65,16 +66,28 @@ def levenshteinDistance(s1, s2):
     return previous_row[-1]
 
 
-class Series(object):
+class Scrape(object):
     """Class to encapsulate file(s) or directorie(s) containing media files from a
     single series.
 
     Series provides an interface for filesystem operations on these local files.
     """
-    def __init__(self, media):
+
+    badresp_msg = "Bad response when querying for {0}: <{1}>"
+
+    def __init__(self, media, tvdbid=None, lang='en'):
+    #     assert checkLanguageSettings(lang), 'Invalid language setting.'
+
         self.files = self.processPaths(media)
         self.filemap = dict((fname, None) for fname in self.files)
         self.seriesname = None  # Don't change this.  Data must remain normalized!
+
+        self.id = tvdbid
+        self.language = lang
+        self.seriesxml = None
+        self.tmpdir = mkdtemp()
+
+        self.getSeriesName()
 
     def processPaths(self, media):
         """Validate paths and format into a flat list of full paths.
@@ -126,13 +139,13 @@ class Series(object):
 
         self.seriesname = ranked[sorted(ranked.keys(), reverse=True)[0]]
 
-    def mapSeriesInfo(self, seriesxml):
+    def mapSeriesInfo(self):
         """Using the series information retrieved from getSeriesInfo,
         Associate XML node to a file based on file name and metadata.
         """
-        assert seriesxml, 'Scrape instance has no seriesxml attribute.  Set with scrape.getSeriesInfo'
+        assert self.seriesxml, 'Scrape instance has no seriesxml attribute.  Set with scrape.getSeriesInfo'
 
-        epNodes = [node for node in (n for n in seriesxml.find_all('episode'))]  # episode nodes
+        epNodes = [node for node in (n for n in self.seriesxml.find_all('episode'))]  # episode nodes
         for fname in self.files:
             guess = guessit.guess_episode_info(self.getPathElement(fname))
             for en in epNodes:
@@ -140,12 +153,12 @@ class Series(object):
                     self.filemap[fname] = {
                                            'S': en.seasonnumber.string,
                                            'E': en.episodenumber.string,
-                                           'seriesname': seriesxml.seriesname.string,
+                                           'seriesname': self.seriesxml.seriesname.string,
                                            'episodename': en.episodename.string,
                                            'ext': fname.split('.')[-1]
                                           }
 
-    def renameFiles(self, formatter=None, test=False):
+    def renameFiles(self, formatter=formatters.default, test=False):
         """Apply pending renames in self.filemap.  All file renaming
         is atomic.  Old filenames are stored in self.old_
 
@@ -175,14 +188,6 @@ class Series(object):
         """
         success = True
         self.old_ = {}
-
-        if not formatter:
-            formatter = {}
-            formatter['sname'] = (self.formatDotTitle, 'seriesname')  # (fn, keys needed to get params from self.filemap[fname])
-            formatter['ename'] = (self.formatDotTitle, 'episodename')
-            formatter['ecode'] = (self.formatSXXEXX, ('S', 'E'))
-            formatter['order'] = ('sname', 'ecode', 'ename')  # required
-            formatter['sep'] = '.'  # can be omitted. defaults to '.' in formatFileName
 
         try:
             for fname in self.files:
@@ -228,37 +233,6 @@ class Series(object):
             else, return resident directory of file
         """
         return os.path.split(path)[fname]
-
-    @staticmethod
-    def formatDotTitle(s):
-        """Convert "example title" to "Example.Title"
-        """
-        return '.'.join(s.title().split(' '))
-
-    @staticmethod
-    def formatSXXEXX(season, episode):
-        """Produce episode numbering (ecode) following the SXXEXX convention:
-        e.g.:  S01E23
-        """
-        return 'S{0}E{1}'.format(season.zfill(2), episode.zfill(2))
-
-
-class Scrape(object):
-    """Class to encapsulate TVDB queries.
-
-    Parameters:
-    media : string or list of strings.
-        List of filenames or single directory containing files **of the same series**.
-    """
-    badresp_msg = "Bad response when querying for {0}: <{1}>"
-
-    def __init__(self, tvdbid=None, lang='en'):
-        # assert checkLanguageSettings(lang), 'Invalid language setting.'
-
-        self.id = tvdbid
-        self.language = lang
-        self.seriesxml = None
-        self.tmpdir = mkdtemp()
 
     def querySeriesName(self, seriesname):
         """Query THETVDB for series name.
@@ -318,10 +292,10 @@ class Scrape(object):
 
         return self.seriesxml
 
-    def getTVDBid(self, seriesname, thresh):
+    def getTVDBid(self, thresh):
         """Get TVDB id number for detected series name.
         """
-        hits = self.querySeriesName(seriesname.strip().lower())
+        hits = self.querySeriesName(self.seriesname.strip().lower())
         if not len(hits):
             self.id = None
             return self.id
@@ -330,7 +304,7 @@ class Scrape(object):
         if len(hits) == 1:
             hit = hits[0]
             sname = hit.seriesname.string.strip().lower()
-            ld = levenshteinDistance(sname, seriesname)
+            ld = levenshteinDistance(sname, self.seriesname)
             if ld <= thresh:
                 self.id = hit.id.string.encode('ascii')
                 return self.id
@@ -343,12 +317,12 @@ class Scrape(object):
             levd_dict = {}
             for series in hits:  # These are already parsed.
                 name = series.SeriesName.string
-                if name.strip().lower() == seriesname:
+                if name.strip().lower() == self.seriesname:
                     self.id = series.id.string
                     return self.id
                 else:
                     sname = series.SeriesName.string.strip().lower()
-                    levd = levenshteinDistance(sname, seriesname)  # Store lev distance
+                    levd = levenshteinDistance(sname, self.seriesname)  # Store lev distance
                     levd_dict[levd] = series
             # Get lowest lev distance here, lookup, assing, return.
             self.id = levd_dict[min(levd_dict.keys)].id.string
