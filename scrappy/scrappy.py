@@ -17,7 +17,7 @@ from ConfigParser import SafeConfigParser
 from docopt import docopt
 import scrappy.core as scrappy
 
-ARGS = docopt(__doc__, version='0.1.0 alpha')
+ARGS = docopt(__doc__, version=scrappy.__version__)
 if not ARGS['PATH']:
     ARGS['PATH'] = './'
 
