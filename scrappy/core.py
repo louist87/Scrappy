@@ -67,6 +67,13 @@ def levenshteinDistance(s1, s2):
     return previous_row[-1]
 
 
+def compare_strings(a, b):
+    """
+    Makes the levenshtein into simple little coefficient, so that it can be rated as a 0 to 1 value.
+    """
+    return max(0, 1 - 2. * levenshteinDistance(a, b) / (len(a) + len(b)))
+
+
 class Scrape(object):
     """Class to encapsulate file(s) or directorie(s) containing media files from a
     single series.
@@ -139,7 +146,7 @@ class Scrape(object):
             ranked = dict((high_conf[series] * normalCount[series], series) for series in normalCount)
 
         self.seriesname = ranked[sorted(ranked.keys(), reverse=True)[0]] or None
-        return self.SeriesName
+        return self.seriesname
 
     def mapSeriesInfo(self):
         """Using the series information retrieved from getSeriesInfo,
@@ -285,14 +292,23 @@ class Scrape(object):
 
         return flag
 
-    def getSeriesInfo(self, thresh, lang='en'):
+    def getSeriesInfo(self, thresh, comp_fn=compare_strings, lang='en'):
         """Get information on the series once it has been identified (self.id is not None)
+
+        thresh : float
+            Similarity threshold for series match.
+
+            Range of values depends on function employed by comp_fn, but ranges from 0 to 1 if
+                the default comparison function (compare_strings) is used.
+
+        comp_fn : fn
+            Function used to assess string similarity.  `compare_strings` by default.
 
         return : bool
             True if successful
         """
         if not self.id:
-            self.getTVDBid(thresh)
+            self.getTVDBid(thresh, comp_fn)
 
         if not self.id:
             return False
@@ -311,7 +327,7 @@ class Scrape(object):
         self.mapSeriesInfo()
         return True
 
-    def getTVDBid(self, thresh):
+    def getTVDBid(self, thresh, comp_fn):
         """Get TVDB id number for detected series name.
         """
         hits = self.querySeriesName(self.seriesname.strip().lower())
@@ -322,7 +338,7 @@ class Scrape(object):
         if len(hits) == 1:
             hit = hits[0]
             sname = hit.seriesname.string.strip().lower()
-            ld = levenshteinDistance(sname, self.seriesname)
+            ld = comp_fn(sname, self.seriesname)
             if ld <= thresh:
                 self.id = hit.id.string.encode('ascii')
             else:
