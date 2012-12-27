@@ -334,7 +334,7 @@ class Scrape(object):
         if not len(hits):
             self.id = None
 
-        # if there's only one result, check lev dist and return if it's within acceptable norms
+        # if there's only one result, check edit dist and return if it's within acceptable norms
         if len(hits) == 1:
             hit = hits[0]
             sname = hit.seriesname.string.strip().lower()
@@ -344,16 +344,16 @@ class Scrape(object):
             else:
                 self.id = None
         else:
-            # else it's longer loop through, checking for exact match (normalized -> stripped/lowered).  If none is found, store lev dist somewhere
-            #   then select option with lowest lev dist.
-            levd_dict = {}
+            # else it's longer loop through, checking for exact match (normalized -> stripped/lowered).  If none is found, store edit dist somewhere
+            #   then select option with lowest edit dist.
+            cmp_dict = {}
             for series in hits:  # These are already parsed.
                 name = series.SeriesName.string
                 if name.strip().lower() == self.seriesname:
                     self.id = series.id.string
                 else:
                     sname = series.SeriesName.string.strip().lower()
-                    levd = levenshteinDistance(sname, self.seriesname)  # Store lev distance
-                    levd_dict[levd] = series
-            # Get lowest lev distance here, lookup, assing, return.
-            self.id = levd_dict[min(levd_dict.keys)].id.string
+                    diff = comp_fn(sname, self.seriesname)  # Store distance
+                    cmp_dict[diff] = series
+            # Get lowest distance here, lookup, assing, return.
+            self.id = cmp_dict[min(cmp_dict.keys)].id.string
