@@ -88,7 +88,8 @@ class Scrape(object):
         self.seriesxml = None
         self.tmpdir = mkdtemp()
 
-        self.getSeriesName()
+        if not self.id:
+            self.getSeriesName()
 
     def processPaths(self, media):
         """Validate paths and format into a flat list of full paths.
