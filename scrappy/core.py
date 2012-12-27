@@ -17,7 +17,7 @@ API = 'http://www.thetvdb.com/api/'
 APIPATH = API + APIKEY
 
 
-def getLanguages():
+def get_languages():
     """Get available language codes from thetvdb.com
 
     returns : list
@@ -27,10 +27,10 @@ def getLanguages():
     return [node for node in (l.string for l in lang.find_all('abbreviation'))]
 
 
-def checkLanguageSettings(lang, langfile):
+def check_language_settings(lang, langfile):
     """Verrify that language code in config file is available in thetvdb API.
     lang : str
-        2-digit language code, as found in output of getLanguages.
+        2-digit language code, as found in output of get_languages.
 
     langfile : str
         language.xml file location
@@ -45,12 +45,12 @@ def checkLanguageSettings(lang, langfile):
     return lang in [l.string for l in languages.find_all('abbreviation')]
 
 
-def levenshteinDistance(s1, s2):
+def levenshtein_distance(s1, s2):
     s1 = s1.strip().lower()
     s2 = s2.strip().lower()
 
     if len(s1) < len(s2):
-        return levenshteinDistance(s2, s1)
+        return levenshtein_distance(s2, s1)
     if not s1:
         return len(s2)
 
@@ -69,9 +69,16 @@ def levenshteinDistance(s1, s2):
 
 def compare_strings(a, b):
     """
-    Makes the levenshtein into simple little coefficient, so that it can be rated as a 0 to 1 value.
+    Makes the levenshtein into simple difference coefficient, so that it can be rated as a 0 to 1 value.
+
+    a, b: str
+        Strings to compare
+
+    return : float
+        Coefficient representing the amount of **difference** between a and b.
     """
-    return max(0, 1 - 2. * levenshteinDistance(a, b) / (len(a) + len(b)))
+    mean = lambda seq: sum(seq) / float(len(seq))
+    return max(0, levenshtein_distance(a, b) / mean((len(a), len(b))))
 
 
 class Scrape(object):
@@ -84,9 +91,9 @@ class Scrape(object):
     badresp_msg = "Bad response when querying for {0}: <{1}>"
 
     def __init__(self, media, tvdbid=None, lang='en'):
-    #     assert checkLanguageSettings(lang), 'Invalid language setting.'
+    #     assert check_language_settings(lang), 'Invalid language setting.'
 
-        self.files = self.processPaths(media)
+        self.files = self.process_paths(media)
         self.filemap = dict((fname, None) for fname in self.files)
         self.seriesname = None  # Don't change this.  Data must remain normalized!
 
@@ -95,9 +102,9 @@ class Scrape(object):
         self.seriesxml = None
         self.tmpdir = mkdtemp()
 
-        self.getSeriesName()
+        self.get_series_name()
 
-    def processPaths(self, media):
+    def process_paths(self, media):
         """Validate paths and format into a flat list of full paths.
         """
         if isinstance(media, str):
@@ -117,14 +124,14 @@ class Scrape(object):
 
         return [f for f in fnames if 'video' in guessit.guess_file_info(f, 'autodetect')['mimetype']]
 
-    def getSeriesName(self):
+    def get_series_name(self):
         """Guess series based on agreement between infered series names for each file.
 
         return: string
         """
 
         guesses = []
-        for g in (guessit.guess_episode_info(self.getPathElement(f)) for f in self.files):
+        for g in (guessit.guess_episode_info(self.get_path_element(f)) for f in self.files):
             if 'series' in g:
                 guesses.append(g)  # dictionary of guessed information
 
@@ -148,15 +155,15 @@ class Scrape(object):
         self.seriesname = ranked[sorted(ranked.keys(), reverse=True)[0]] or None
         return self.seriesname
 
-    def mapSeriesInfo(self):
-        """Using the series information retrieved from getSeriesInfo,
+    def map_series_info(self):
+        """Using the series information retrieved from get_series_info,
         Associate XML node to a file based on file name and metadata.
         """
-        assert self.seriesxml, 'Scrape instance has no seriesxml attribute.  Set with scrape.getSeriesInfo'
+        assert self.seriesxml, 'Scrape instance has no seriesxml attribute.  Set with scrape.get_series_info'
 
         epNodes = [node for node in (n for n in self.seriesxml.find_all('episode'))]  # episode nodes
         for fname in self.files:
-            guess = guessit.guess_episode_info(self.getPathElement(fname))
+            guess = guessit.guess_episode_info(self.get_path_element(fname))
             for en in epNodes:
                 if guess['season'] == int(en.seasonnumber.string) and guess['episodeNumber'] == int(en.episodenumber.string):
                     self.filemap[fname] = {
@@ -167,7 +174,7 @@ class Scrape(object):
                                            'ext': fname.split('.')[-1]
                                           }
 
-    def renameFiles(self, formatter=formatters.default, test=False):
+    def rename_files(self, formatter=formatters.default, test=False):
         """Apply pending renames in self.filemap.  All file renaming
         is atomic.  Old filenames are stored in self.old_
 
@@ -201,7 +208,7 @@ class Scrape(object):
         try:
             for fname in self.files:
                 if self.filemap[fname] is not None:
-                    newname = self.formatFileName(self.filemap[fname], formatter)
+                    newname = self.format_filename(self.filemap[fname], formatter)
                     if not test:
                         os.rename(fname, newname)
                         old[newname] = fname
@@ -213,12 +220,12 @@ class Scrape(object):
             print "DEBUG WARNING: in exception block"  # DEBUG
             success = False
             if not test:
-                self.revertFilenames(_override=old)
+                self.revert_filenames(_override=old)
 
         finally:
             return success
 
-    def revertFilenames(self, _override=None):
+    def revert_filenames(self, _override=None):
         """Undo a file rename.  Function performs no action unless files have been renamed
 
         _override : dict
@@ -229,7 +236,7 @@ class Scrape(object):
             for key in old:
                 os.rename(key, old[key])
 
-    def formatFileName(self, fdata, formatter):
+    def format_filename(self, fdata, formatter):
         """Format data about a media file with a formatter
         """
         prep = {}
@@ -242,7 +249,7 @@ class Scrape(object):
 
         return formatter.get('sep', '.').join([prep[k] for k in formatter['order']] + [fdata['ext']])
 
-    def getPathElement(self, path, fname=True):
+    def get_path_element(self, path, fname=True):
         """Retrieve either the file name or the resident directory
         of a file.
 
@@ -255,13 +262,13 @@ class Scrape(object):
         """
         return os.path.split(path)[fname]
 
-    def querySeriesName(self, seriesname):
+    def query_series_name(self, seriesname):
         """Query THETVDB for series name.
 
         return:
             BeautifulSoup instance
         """
-        assert seriesname, 'Scrape instance has no seriesname attribute.  Did you run Scrape.getSeriesName?'
+        assert seriesname, 'Scrape instance has no seriesname attribute.  Did you run Scrape.get_series_name?'
 
         payload = {'seriesname': seriesname, 'language': self.language}
         resp = requests.get(os.path.join(API, "GetSeries.php"), params=payload)
@@ -292,7 +299,7 @@ class Scrape(object):
 
         return flag
 
-    def getSeriesInfo(self, thresh, comp_fn=compare_strings, lang='en'):
+    def get_series_info(self, thresh, comp_fn=compare_strings, lang='en'):
         """Get information on the series once it has been identified (self.id is not None)
 
         thresh : float
@@ -308,7 +315,7 @@ class Scrape(object):
             True if successful
         """
         if not self.id:
-            self.getTVDBid(thresh, comp_fn)
+            self.get_tvdb_id(thresh, comp_fn)
 
         if not self.id:
             return False
@@ -324,13 +331,13 @@ class Scrape(object):
         with open(os.path.join(self.tmpdir, xmlname), 'rt') as f:
             self.seriesxml = BeautifulSoup(f)
 
-        self.mapSeriesInfo()
+        self.map_series_info()
         return True
 
-    def getTVDBid(self, thresh, comp_fn):
+    def get_tvdb_id(self, thresh, comp_fn):
         """Get TVDB id number for detected series name.
         """
-        hits = self.querySeriesName(self.seriesname.strip().lower())
+        hits = self.query_series_name(self.seriesname.strip().lower())
         if not len(hits):
             self.id = None
 
