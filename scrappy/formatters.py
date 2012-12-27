@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
 
-def formatDotTitle(s):
+def format_dot_title(s):
     """Convert "example title" to "Example.Title"
     """
     return '.'.join(s.title().split(' '))
 
 
-def formatSXXEXX(season, episode):
+def format_SXXEXX(season, episode):
     """Produce episode numbering (ecode) following the SXXEXX convention:
     e.g.:  S01E23
     """
@@ -15,9 +15,9 @@ def formatSXXEXX(season, episode):
 
 
 default = {
-            'sname': (formatDotTitle, 'seriesname'),  # (fn, keys needed to get params from self.filemap[fname])
-            'ename': (formatDotTitle, 'episodename'),
-            'ecode': (formatSXXEXX, ('S', 'E')),
+            'sname': (format_dot_title, 'seriesname'),  # (fn, keys needed to get params from self.filemap[fname])
+            'ename': (format_dot_title, 'episodename'),
+            'ecode': (format_SXXEXX, ('S', 'E')),
             'order': ('sname', 'ecode', 'ename'),  # required
             'sep': '.'    # can be omitted. defaults to '.' in formatFileName
           }
