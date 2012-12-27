@@ -10,7 +10,7 @@ from tempfile import mkdtemp
 from bs4 import BeautifulSoup
 from collections import defaultdict
 
-__version__ = '0.1.1 alpha'
+__version__ = '0.1.2 alpha'
 
 APIKEY = 'D1BD82E2AE599ADD'
 API = 'http://www.thetvdb.com/api/'

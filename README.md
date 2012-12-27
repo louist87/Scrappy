@@ -19,9 +19,9 @@ import scrappy.core as scrappy
 scrape = scrappy.Scrape('its always sunny in philadelphia 101.mkv')
 
 # Query TheTVDB for data and rename
-err = 3  # Max error (number of edits) to accept a hit
-if scrape.getSeriesInfo(err):  # Returns false if series not found.  Try increasing err.
-    scrape.renameFiles(test=True)  # test file rename (no changes committed when test == True)
+err = .2  # Max error (difference coefficient) to accept result
+if scrape.get_series_info(err):  # Returns false if series not found.  Try increasing err.
+    scrape.rename_files(test=True)  # test file rename (no changes committed when test == True)
 ```
 
 ```python
@@ -58,9 +58,9 @@ If you make a mistake, you can always revert changes made on the local filesyste
 
 ```python
 scrape = scrappy.Scrape('its always sunny in philadelphia 101.mkv')
-err = 3  # Max error (number of edits) to accept a hit
-if scrape.getSeriesInfo(err):
-    scrape.renameFiles()  # No test this time!
+err = .2  # Max error (difference coefficient) to accept result
+if scrape.get_series_info(err):
+    scrape.rename_files()  # No test this time!
 
 print scrape.files
 scrape.revertFilenames()
