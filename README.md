@@ -24,7 +24,7 @@ if scrape.get_series_info(err):  # Returns false if series not found.  Try incre
     scrape.rename_files(test=True)  # test file rename (no changes committed when test == True)
 ```
 
-```python
+```
 It'S.Always.Sunny.In.Philadelphia.S01E01.The.Gang.Gets.Racist.mkv
 ```
 
@@ -67,7 +67,7 @@ scrape.revertFilenames()
 print scrape.files
 ```
 
-```python
+```
 It'S.Always.Sunny.In.Philadelphia.S01E01.The.Gang.Gets.Racist.mkv
 ['its always sunny in philadelphia 101.mkv']
 ```
