@@ -67,6 +67,8 @@ class Scrape(object):
         self.normalized_seriesname = ''
         self.series = None
 
+        if tvdbid:  # tolerate users who pass ints
+            tvdbid = str(tvdbid)
         self.id = tvdbid
         self.language = lang
 
@@ -212,7 +214,7 @@ class Scrape(object):
             for fname in self.files:
                 ep = self.filemap[fname]
                 if ep is not None:
-                    newname = formatter(ep)
+                    newname = '{0}.{ext}'.format(formatter(ep), ext=fname.split('.')[-1])
                     if not test:
                         os.rename(fname, newname)
                         old[newname] = fname
