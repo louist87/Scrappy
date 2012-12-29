@@ -9,7 +9,7 @@ setup(
     author_email='',
     packages=['scrappy'],
     include_package_data=True,
-    install_requires=['guessit', 'tvdb_api'],
+    install_requires=['guessit', 'tvdb_api', 'ez_setup', 'titlecase'],
     url='https://github.com/louist87/scrappy',
     license='GPL 3.0',
     description='Rename video files based on information scraped from thetvdb.com',

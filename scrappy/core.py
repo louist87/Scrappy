@@ -1,48 +1,15 @@
 #!/usr/bin/env python
 import os
-import zipfile
-import guessit
-import requests
-import formatters
 from glob import glob
 from itertools import chain
-from tempfile import mkdtemp
-from bs4 import BeautifulSoup
 from collections import defaultdict
 
-__version__ = '0.1.2 alpha'
+import formatters
 
-APIKEY = 'D1BD82E2AE599ADD'
-API = 'http://www.thetvdb.com/api/'
-APIPATH = API + APIKEY
+import guessit
+import tvdb_api as tvdb
 
-
-def get_languages():
-    """Get available language codes from thetvdb.com
-
-    returns : list
-    """
-    resp = requests.get(os.path.join(APIPATH, '/languages.xml'))
-    lang = BeautifulSoup(resp.content)
-    return [node for node in (l.string for l in lang.find_all('abbreviation'))]
-
-
-def check_language_settings(lang, langfile):
-    """Verrify that language code in config file is available in thetvdb API.
-    lang : str
-        2-digit language code, as found in output of getLanguages.
-
-    langfile : str
-        language.xml file location
-
-    return : bool
-        True if language code is available in API.
-    """
-
-    with open(langfile) as f:
-        languages = BeautifulSoup(f)
-
-    return lang in [l.string for l in languages.find_all('abbreviation')]
+__version__ = '0.1.3 alpha'
 
 
 def levenshtein_distance(s1, s2):
@@ -88,19 +55,20 @@ class Scrape(object):
     Series provides an interface for filesystem operations on these local files.
     """
 
-    badresp_msg = "Bad response when querying for {0}: <{1}>"
+    _api_key = 'D1BD82E2AE599ADD'
 
     def __init__(self, media, tvdbid=None, lang='en'):
     #     assert check_language_settings(lang), 'Invalid language setting.'
 
+        self._api = tvdb.Tvdb(apikey=self._api_key, language=lang)  # TODO:  render interactive and implement a custom UI
+
         self.files = self.process_paths(media)
         self.filemap = dict((fname, None) for fname in self.files)
-        self.seriesname = None  # Don't change this.  Data must remain normalized!
+        self.normalized_seriesname = ''
+        self.series = None
 
         self.id = tvdbid
         self.language = lang
-        self.seriesxml = None
-        self.tmpdir = mkdtemp()
 
         if not self.id:
             self.get_series_name()
@@ -121,7 +89,7 @@ class Scrape(object):
                 fnames.append(path)
 
         assert len(fnames), 'media contains no data.'
-        assert False not in [os.path.isfile(f) for f in fnames], 'One or more files could not be reached.  Check path names!'
+        assert all([os.path.isfile(f) for f in fnames]), 'One or more files could not be reached.  Check path names!'
 
         return [f for f in fnames if 'video' in guessit.guess_file_info(f, 'autodetect')['mimetype']]
 
@@ -153,33 +121,67 @@ class Scrape(object):
             #   Select title with highest rating / occurrence
             ranked = dict((high_conf[series] * normalCount[series], series) for series in normalCount)
 
-        self.seriesname = ranked[sorted(ranked.keys(), reverse=True)[0]] or None
-        return self.seriesname
+        self.normalized_seriesname = ranked[sorted(ranked.keys(), reverse=True)[0]] or None
+        return self.normalized_seriesname
 
-    def map_series_info(self):
-        """Using the series information retrieved from get_series_info,
-        Associate XML node to a file based on file name and metadata.
+    def map_episode_info(self, thresh, comp_fn=compare_strings, lang='en'):
+        """Map episode information to each file.
+
+        thresh : int or float
+            String difference threshold to accept a TVDB entry.  Parameter depends on comp_fn.
+            float for default comp_fn parameter (compare_strings)
+
+        comp_fn : fn
+            String comparison function that returns a measure of the difference between two strings.
+
+        lang : str
+            Two-letter language code
+            Default = 'en'
+
+        return : tuple or None
+            None indicates that no matching series was found
         """
-        assert self.seriesxml, 'Scrape instance has no seriesxml attribute.  Set with scrape.get_series_info'
+        tvdbid = self.id or False  # Do **not** use None.  Conversion to int fails.
 
-        epNodes = [node for node in (n for n in self.seriesxml.find_all('episode'))]  # episode nodes
-        for fname in self.files:
-            guess = guessit.guess_episode_info(self.get_path_element(fname))
-            for en in epNodes:
-                if guess['season'] == int(en.seasonnumber.string) and guess['episodeNumber'] == int(en.episodenumber.string):
-                    self.filemap[fname] = {
-                                           'S': en.seasonnumber.string,
-                                           'E': en.episodenumber.string,
-                                           'seriesname': self.seriesxml.seriesname.string,
-                                           'episodename': en.episodename.string,
-                                           'ext': fname.split('.')[-1]
-                                          }
+        assert self.id or self.normalized_seriesname is not '', 'could not identify TV series for scrape'
+        lookup_key = int(tvdbid) or self.normalized_seriesname
+
+        try:
+            self.series = self._api[lookup_key]  # lookup series name
+        except tvdb.tvdb_shownotfound:
+            pass
+
+        #TODO: pick best series if multiple hits
+
+        self.filemap = dict((f, s) for f, s in zip(self.files, map(self._get_episode_info, self.files)))
+
+        if not self.id:
+            self.id = self.series.data['id']
+
+        if not self.normalized_seriesname:
+            self.normalized_seriesname = self.series.data['seriesname'].lower()
+
+        return self.series
+
+    def _get_episode_info(self, f):
+        """Get episode information for each file from from the tvdb.Series object.
+
+        return : dict or None
+            Dict of episode information.
+            None indicates that no such episode exists.
+        """
+        g = guessit.guess_episode_info(f)
+        ep = self.series.get(g['season'])
+        if ep:
+            ep = ep.get(g['episodeNumber'])
+
+        return ep
 
     def rename_files(self, formatter=formatters.default, test=False):
         """Apply pending renames in self.filemap.  All file renaming
         is atomic.  Old filenames are stored in self.old_
 
-        formatter : dict
+        formatter : dict #### TO DO:  REPLACE WITH REGEX
             Dictionary used to format file names.
             The formatter **must** contain a key called 'order', which contains
                 the keys that will be used in the construction of the new file name.
@@ -208,8 +210,9 @@ class Scrape(object):
 
         try:
             for fname in self.files:
-                if self.filemap[fname] is not None:
-                    newname = self.format_filename(self.filemap[fname], formatter)
+                ep = self.filemap[fname]
+                if ep is not None:
+                    newname = formatter(ep)
                     if not test:
                         os.rename(fname, newname)
                         old[newname] = fname
@@ -217,8 +220,7 @@ class Scrape(object):
                         print newname
 
             self.old_ = old  # dynamically add attribute
-        except:
-            print "DEBUG WARNING: in exception block"  # DEBUG
+        except IOError:
             success = False
             if not test:
                 self.revert_filenames(_override=old)
@@ -237,19 +239,6 @@ class Scrape(object):
             for key in old:
                 os.rename(key, old[key])
 
-    def format_filename(self, fdata, formatter):
-        """Format data about a media file with a formatter
-        """
-        prep = {}
-        for field in formatter['order']:
-            fn, args = formatter[field]
-            if not hasattr(args, '__iter__'):
-                args = (args,)
-
-            prep[field] = fn(*[fdata[ar] for ar in args])
-
-        return formatter.get('sep', '.').join([prep[k] for k in formatter['order']] + [fdata['ext']])
-
     def get_path_element(self, path, fname=True):
         """Retrieve either the file name or the resident directory
         of a file.
@@ -262,106 +251,3 @@ class Scrape(object):
             else, return resident directory of file
         """
         return os.path.split(path)[fname]
-
-    def query_series_name(self, seriesname):
-        """Query THETVDB for series name.
-
-        return:
-            BeautifulSoup instance
-        """
-        assert seriesname, 'Scrape instance has no seriesname attribute.  Did you run Scrape.get_series_name?'
-
-        payload = {'seriesname': seriesname, 'language': self.language}
-        resp = requests.get(os.path.join(API, "GetSeries.php"), params=payload)
-        assert resp.status_code == requests.codes.ok, self.badresp_msg.format("series name", resp.status_code)
-
-        return BeautifulSoup(resp.content).find_all('series')
-
-    def urlretrieve(self, url, outdir):
-        """Retrieve binary file at a given url.
-
-        url : str
-            url pointing to file to retreive
-        outdir : str
-            output directory
-
-        return:  bool
-            True if successful
-        """
-        flag = False
-
-        resp = requests.get(url)
-        if resp.status_code != requests.codes.ok:
-            return flag
-
-        with open(outdir, 'wb') as f:
-            f.write(resp.content)
-            flag = True
-
-        return flag
-
-    def get_series_info(self, thresh, comp_fn=compare_strings, lang='en'):
-        """Get information on the series once it has been identified (self.id is not None)
-
-        thresh : float
-            Similarity threshold for series match.
-
-            Range of values depends on function employed by comp_fn, but ranges from 0 to 1 if
-                the default comparison function (compare_strings) is used.
-
-        comp_fn : fn
-            Function used to assess string similarity.  `compare_strings` by default.
-
-        return : bool
-            True if successful
-        """
-        if not self.id:
-            self.get_tvdb_id(thresh, comp_fn)
-
-        if not self.id:
-            return False
-
-        zfname = lang + ".zip"
-        searchstring = os.path.join(APIPATH, 'series', self.id, 'all', zfname)
-
-        assert self.urlretrieve(searchstring, os.path.join(self.tmpdir, zfname)), 'Could not fetch series information.'
-        with zipfile.ZipFile(os.path.join(self.tmpdir, zfname)) as zipf:
-            xmlname = lang + '.xml'
-            zipf.extract(xmlname, self.tmpdir)
-
-        with open(os.path.join(self.tmpdir, xmlname), 'rt') as f:
-            self.seriesxml = BeautifulSoup(f)
-
-        self.map_series_info()
-        return True
-
-    def get_tvdb_id(self, thresh, comp_fn):
-        """Get TVDB id number for detected series name.
-        """
-        hits = self.query_series_name(self.seriesname.strip().lower())
-        if not len(hits):
-            self.id = None
-
-        # if there's only one result, check edit dist and return if it's within acceptable norms
-        if len(hits) == 1:
-            hit = hits[0]
-            sname = hit.seriesname.string.strip().lower()
-            ld = comp_fn(sname, self.seriesname)
-            if ld <= thresh:
-                self.id = hit.id.string.encode('ascii')
-            else:
-                self.id = None
-        else:
-            # else it's longer loop through, checking for exact match (normalized -> stripped/lowered).  If none is found, store edit dist somewhere
-            #   then select option with lowest edit dist.
-            cmp_dict = {}
-            for series in hits:  # These are already parsed.
-                name = series.SeriesName.string
-                if name.strip().lower() == self.seriesname:
-                    self.id = series.id.string
-                else:
-                    sname = series.SeriesName.string.strip().lower()
-                    diff = comp_fn(sname, self.seriesname)  # Store distance
-                    cmp_dict[diff] = series
-            # Get lowest distance here, lookup, assing, return.
-            self.id = cmp_dict[min(cmp_dict.keys)].id.string
