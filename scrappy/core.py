@@ -3,6 +3,7 @@ import os
 from glob import glob
 from itertools import chain, repeat
 from collections import defaultdict, deque
+from mimetypes import guess_type
 
 import formatters
 
@@ -193,6 +194,10 @@ class FileSystemManager(object):
     def __getitem__(self, k):
         return self._old[k]
 
+    def __iter__(self):
+        for f in self._files:
+            yield f
+
     def files():
         doc = "Tracked files"
 
@@ -209,20 +214,6 @@ class FileSystemManager(object):
         return locals()
     files = property(**files())
 
-    def iter_files():
-        doc = "Iterator yielding tracked files"
-
-        def fget(self):
-            return (f for f in self._files)
-
-        def fset(self, value):
-            raise TypeError('use add, extend or pop methods to modify files')
-
-        def fdel(self):
-            raise TypeError('can not delete attribute')
-        return locals()
-    iter_files = property(**iter_files())
-
     def _process_files(self, media):
         seen = set()
         for f in self._flatten_dirs(chain(*[glob(m) for m in media])):
@@ -230,11 +221,13 @@ class FileSystemManager(object):
                 seen.add(f)
 
         # sort, filter video files
-        for m in media:
-            print m#, guessit.guess_file_info(m, 'autodetect').get('mimetype')
-        #media = map(guessit.guess_file_info, seen, repeat('autodetect', len(seen)))
+        files = []
+        for f in seen:
+            mtype = guess_type(f, False)[0]
+            if mtype and 'video' in mtype:
+                files.append(f)
 
-        #return sorted(filter(lambda x: 'mimetype' in x and 'video' in x['mimetype'], media))
+        return sorted(files)
 
     def _flatten_dirs(self, media):
         for path in media:
