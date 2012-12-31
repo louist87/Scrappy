@@ -75,25 +75,25 @@ class Scrape(object):
         if not self.id:
             self.get_series_name()
 
-    def process_paths(self, media):
-        """Validate paths and format into a flat list of full paths.
-        """
-        if isinstance(media, str):
-            media = (media,)
+    # def process_paths(self, media):
+    #     """Validate paths and format into a flat list of full paths.
+    #     """
+    #     if isinstance(media, str):
+    #         media = (media,)
 
-        media = chain(*[glob(m) for m in media])
+    #     media = chain(*[glob(m) for m in media])
 
-        fnames = []
-        for path in media:
-            if os.path.isdir(path):
-                fnames.extend(glob(os.path.join(path, '*')))
-            elif os.path.isfile(path):
-                fnames.append(path)
+    #     fnames = []
+    #     for path in media:
+    #         if os.path.isdir(path):
+    #             fnames.extend(glob(os.path.join(path, '*')))
+    #         elif os.path.isfile(path):
+    #             fnames.append(path)
 
-        assert len(fnames), 'media contains no data.'
-        assert all([os.path.isfile(f) for f in fnames]), 'One or more files could not be reached.  Check path names!'
+    #     assert len(fnames), 'media contains no data.'
+    #     assert all([os.path.isfile(f) for f in fnames]), 'One or more files could not be reached.  Check path names!'
 
-        return [f for f in fnames if 'video' in guessit.guess_file_info(f, 'autodetect')['mimetype']]
+    #     return [f for f in fnames if 'video' in guessit.guess_file_info(f, 'autodetect')['mimetype']]
 
     def get_series_name(self):
         """Guess series based on agreement between infered series names for each file.
@@ -179,77 +179,53 @@ class Scrape(object):
 
         return ep
 
-    def rename_files(self, formatter=formatters.default, test=False):
-        """Apply pending renames in self.filemap.  All file renaming
-        is atomic.  Old filenames are stored in self.old_
+    # def rename_files(self, formatter=formatters.default, test=False):
+    #     """Apply pending renames in self.filemap.  All file renaming
+    #     is atomic.  Old filenames are stored in self.old_
+    #     """
+    #     success = True
+    #     old = {}
 
-        formatter : dict #### TO DO:  REPLACE WITH REGEX
-            Dictionary used to format file names.
-            The formatter **must** contain a key called 'order', which contains
-                the keys that will be used in the construction of the new file name.
-                Elements will be in the same order as this sequence.
+    #     try:
+    #         for fname in self.files:
+    #             ep = self.filemap[fname]
+    #             if ep is not None:
+    #                 newname = '{0}.{ext}'.format(formatter(ep), ext=fname.split('.')[-1])
+    #                 if not test:
+    #                     os.rename(fname, newname)
+    #                     old[newname] = fname
+    #                 else:
+    #                     print newname
 
-            The formatter may then contain arbitrarily named keys that map to a tuple containing
-                an associated function **AND** the names of the keys in a dictionary returned from
-                `guessit.guess_episode_info` that map to its parameters.
+    #         self.old_ = old  # dynamically add attribute
+    #     except IOError:
+    #         success = False
+    #         if not test:
+    #             self.revert_filenames(_override=old)
 
-                EXAMPLES:
-                *  formatter['ecode'] = (lambda s, e: s.capitalize() + e.capitalize(), ('S', 'E'))
-                *  formatter['sname'] - (lambda s: s.title(), 'seriesname')
+    #     finally:
+    #         return success
 
-            Lastly, the formatter may **optionally** contain a 'sep' field containing a separator that
-                will delimit the above fields in the new file name.  If none is provided, the separator
-                will default to '.'
+    # def revert_filenames(self, _override=None):
+    #     """Undo a file rename.  Function performs no action unless files have been renamed
 
-        test : bool
-            If True, no files are modified, but verbose output is provided for debugging
+    #     _override : dict
+    #         For internal use.  Do not use.
+    #     """
+    #     if hasattr(self, 'old_') or _override:
+    #         old = _override or self.old_
+    #         for key in old:
+    #             os.rename(key, old[key])
 
-        return: bool
-            True if rename is successful.
-        """
-        success = True
-        old = {}
+    # def get_path_element(self, path, fname=True):
+    #     """Retrieve either the file name or the resident directory
+    #     of a file.
 
-        try:
-            for fname in self.files:
-                ep = self.filemap[fname]
-                if ep is not None:
-                    newname = '{0}.{ext}'.format(formatter(ep), ext=fname.split('.')[-1])
-                    if not test:
-                        os.rename(fname, newname)
-                        old[newname] = fname
-                    else:
-                        print newname
+    #     path : str
+    #         /path/to/file.ext
 
-            self.old_ = old  # dynamically add attribute
-        except IOError:
-            success = False
-            if not test:
-                self.revert_filenames(_override=old)
-
-        finally:
-            return success
-
-    def revert_filenames(self, _override=None):
-        """Undo a file rename.  Function performs no action unless files have been renamed
-
-        _override : dict
-            For internal use.  Do not use.
-        """
-        if hasattr(self, 'old_') or _override:
-            old = _override or self.old_
-            for key in old:
-                os.rename(key, old[key])
-
-    def get_path_element(self, path, fname=True):
-        """Retrieve either the file name or the resident directory
-        of a file.
-
-        path : str
-            /path/to/file.ext
-
-        fname : bool
-            If true, return file name
-            else, return resident directory of file
-        """
-        return os.path.split(path)[fname]
+    #     fname : bool
+    #         If true, return file name
+    #         else, return resident directory of file
+    #     """
+    #     return os.path.split(path)[fname]
