@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 import os
 from glob import glob
-from itertools import chain
-from collections import defaultdict
+from itertools import chain, repeat
+from collections import defaultdict, deque
 
 import formatters
 
@@ -62,8 +62,9 @@ class Scrape(object):
 
         self._api = tvdb.Tvdb(apikey=self._api_key, language=lang)  # TODO:  render interactive and implement a custom UI
 
-        self.files = self.process_paths(media)
-        self.filemap = dict((fname, None) for fname in self.files)
+        self._files = FileSystemManager(media)
+        self.filemap = dict((fname, None) for fname in self._files)
+        self.revert_filenames = self._files.revert
         self.normalized_seriesname = ''
         self.series = None
 
@@ -75,26 +76,6 @@ class Scrape(object):
         if not self.id:
             self.get_series_name()
 
-    # def process_paths(self, media):
-    #     """Validate paths and format into a flat list of full paths.
-    #     """
-    #     if isinstance(media, str):
-    #         media = (media,)
-
-    #     media = chain(*[glob(m) for m in media])
-
-    #     fnames = []
-    #     for path in media:
-    #         if os.path.isdir(path):
-    #             fnames.extend(glob(os.path.join(path, '*')))
-    #         elif os.path.isfile(path):
-    #             fnames.append(path)
-
-    #     assert len(fnames), 'media contains no data.'
-    #     assert all([os.path.isfile(f) for f in fnames]), 'One or more files could not be reached.  Check path names!'
-
-    #     return [f for f in fnames if 'video' in guessit.guess_file_info(f, 'autodetect')['mimetype']]
-
     def get_series_name(self):
         """Guess series based on agreement between infered series names for each file.
 
@@ -102,7 +83,7 @@ class Scrape(object):
         """
 
         guesses = []
-        for g in (guessit.guess_episode_info(self.get_path_element(f)) for f in self.files):
+        for g in (guessit.guess_episode_info(self._files.get_filename(f)) for f in self.files):
             if 'series' in g:
                 guesses.append(g)  # dictionary of guessed information
 
@@ -179,53 +160,130 @@ class Scrape(object):
 
         return ep
 
-    # def rename_files(self, formatter=formatters.default, test=False):
-    #     """Apply pending renames in self.filemap.  All file renaming
-    #     is atomic.  Old filenames are stored in self.old_
-    #     """
-    #     success = True
-    #     old = {}
+    def rename_files(self, formatter=formatters.default, test=False):
+        """Apply pending renames in self.filemap.  All file renaming
+        is atomic.
+        """
+        for fname in self.files:
+            ep = self.filemap[fname]
+            if ep is not None:
+                newname = '{0}.{ext}'.format(formatter(ep), ext=fname.split('.')[-1])
+                if not test:
+                    self.old_ = self._old
+                    self._files[fname] = newname
+                else:
+                    print newname
 
-    #     try:
-    #         for fname in self.files:
-    #             ep = self.filemap[fname]
-    #             if ep is not None:
-    #                 newname = '{0}.{ext}'.format(formatter(ep), ext=fname.split('.')[-1])
-    #                 if not test:
-    #                     os.rename(fname, newname)
-    #                     old[newname] = fname
-    #                 else:
-    #                     print newname
 
-    #         self.old_ = old  # dynamically add attribute
-    #     except IOError:
-    #         success = False
-    #         if not test:
-    #             self.revert_filenames(_override=old)
+class FileSystemManager(object):
+    def __init__(self, media):
+        if not hasattr(media, '__iter__'):
+            media = (media,)
 
-    #     finally:
-    #         return success
+        self._files = self._process_files(media)
+        assert filter(os.path.isfile, self._files), 'one or more files unreachable'
+        self._old = {f: None for f in self._files}
 
-    # def revert_filenames(self, _override=None):
-    #     """Undo a file rename.  Function performs no action unless files have been renamed
+    def __repr__(self):
+        print "<FileSystemManager> containing {0} files".format(len(self._files))
 
-    #     _override : dict
-    #         For internal use.  Do not use.
-    #     """
-    #     if hasattr(self, 'old_') or _override:
-    #         old = _override or self.old_
-    #         for key in old:
-    #             os.rename(key, old[key])
+    def __setitem__(self, k, v):
+        self.rename(k, v)
 
-    # def get_path_element(self, path, fname=True):
-    #     """Retrieve either the file name or the resident directory
-    #     of a file.
+    def __getitem__(self, k):
+        return self._old[k]
 
-    #     path : str
-    #         /path/to/file.ext
+    def files():
+        doc = "Tracked files"
 
-    #     fname : bool
-    #         If true, return file name
-    #         else, return resident directory of file
-    #     """
-    #     return os.path.split(path)[fname]
+        def fget(self):
+            return list(self._files)  # deep copy
+
+        def fset(self, value):
+            raise TypeError('use add, extend or pop methods to modify files')
+
+        def fdel(self):
+            self._files = []
+            self._old = {}
+
+        return locals()
+    files = property(**files())
+
+    def iter_files():
+        doc = "Iterator yielding tracked files"
+
+        def fget(self):
+            return (f for f in self._files)
+
+        def fset(self, value):
+            raise TypeError('use add, extend or pop methods to modify files')
+
+        def fdel(self):
+            raise TypeError('can not delete attribute')
+        return locals()
+    iter_files = property(**iter_files())
+
+    def _process_files(self, media):
+        seen = set()
+        for f in self._flatten_dirs(chain(*[glob(m) for m in media])):
+            if f not in seen:
+                seen.add(f)
+
+        # sort, filter video files
+        for m in media:
+            print m#, guessit.guess_file_info(m, 'autodetect').get('mimetype')
+        #media = map(guessit.guess_file_info, seen, repeat('autodetect', len(seen)))
+
+        #return sorted(filter(lambda x: 'mimetype' in x and 'video' in x['mimetype'], media))
+
+    def _flatten_dirs(self, media):
+        for path in media:
+            if os.path.isfile(path):
+                yield os.path.join(path)
+            for d, dirs, files in os.walk(path):
+                for f in files:
+                    yield os.path.join(path, f)
+
+    def rename(self, old, new):
+        os.rename(old, new)
+        self._old[new] = self._old[old].pop().appendleft(old)
+
+    def revert(self, files=None):
+        files = files or self._old.files()
+        if not hasattr(files, '__iter__'):
+            files = (files,)
+
+        for k in files:
+            self.rename(k, self._old[k])
+
+    def add(self, new):
+        new = self._process_files(new)
+        if new not in self._files:
+            assert os.path.isfile(new), 'file is unreachable'
+            self._files = sorted(self._files.append(new))
+            self._old[new] = None
+
+    def pop(self, f):
+        if isinstance(f, int):
+            key = self._files.pop(f)
+        else:
+            for i, key in enumerate(self._files):
+                if key == f:
+                    self._files.pop(i)
+
+        self._old.pop(key)
+
+    def extend(self, files):
+        files = self._process_files(files)
+        files = [f for f in files if f not in self._files]
+        assert filter(os.path.isfile, files), 'one or more files unreachable'
+        self._files.extend(files)
+        self._old.update({k: None for k in files})
+
+    @staticmethod
+    def get_path(path):
+        return os.path.split()[0]
+
+    @staticmethod
+    def get_filename(path):
+        return os.path.split()[1]
