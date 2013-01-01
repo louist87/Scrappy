@@ -10,7 +10,7 @@ import formatters
 import guessit
 import tvdb_api as tvdb
 
-__version__ = '0.1.3 alpha'
+__version__ = '0.1.4 alpha'
 
 
 def levenshtein_distance(s1, s2):
@@ -63,7 +63,7 @@ class Scrape(object):
 
         self._api = tvdb.Tvdb(apikey=self._api_key, language=lang)  # TODO:  render interactive and implement a custom UI
 
-        self._files = FileSystemManager(media)
+        self._files = FileSystemInterface(media)
         self.filemap = dict((fname, None) for fname in self._files)
         self.revert_filenames = self._files.revert
         self.normalized_seriesname = ''
@@ -75,9 +75,23 @@ class Scrape(object):
         self.language = lang
 
         if not self.id:
-            self.get_series_name()
+            self._guess_series_name()
 
-    def get_series_name(self):
+    def files():
+        doc = "The files property."
+
+        def fget(self):
+            return tuple(f for f in self._files)
+
+        def fset(self, value):
+            raise TypeError('cannot modify attribute')
+
+        def fdel(self):
+            raise TypeError('cannot delete attribute')
+        return locals()
+    files = property(**files())
+
+    def _guess_series_name(self):
         """Guess series based on agreement between infered series names for each file.
 
         return: string
@@ -170,13 +184,12 @@ class Scrape(object):
             if ep is not None:
                 newname = '{0}.{ext}'.format(formatter(ep), ext=fname.split('.')[-1])
                 if not test:
-                    self.old_ = self._old
-                    self._files[fname] = newname
+                    self._files.rename(fname, newname)
                 else:
                     print newname
 
 
-class FileSystemManager(object):
+class FileSystemInterface(object):
     def __init__(self, media):
         if not hasattr(media, '__iter__'):
             media = (media,)
@@ -186,13 +199,7 @@ class FileSystemManager(object):
         self._old = {f: None for f in self._files}
 
     def __repr__(self):
-        print "<FileSystemManager> containing {0} files".format(len(self._files))
-
-    def __setitem__(self, k, v):
-        self.rename(k, v)
-
-    def __getitem__(self, k):
-        return self._old[k]
+        return "<FileSystemInterface> containing {0} files".format(len(self._files))
 
     def __iter__(self):
         for f in self._files:
@@ -208,9 +215,7 @@ class FileSystemManager(object):
             raise TypeError('use add, extend or pop methods to modify files')
 
         def fdel(self):
-            self._files = []
-            self._old = {}
-
+            raise TypeError('use pop or clear to remove items')
         return locals()
     files = property(**files())
 
@@ -238,8 +243,10 @@ class FileSystemManager(object):
                     yield os.path.join(path, f)
 
     def rename(self, old, new):
+        import pdb; pdb.set_trace()
         os.rename(old, new)
-        self._old[new] = self._old[old].pop().appendleft(old)
+        self._old[new] = old
+        self._old.pop(old)
 
     def revert(self, files=None):
         files = files or self._old.files()
@@ -266,6 +273,10 @@ class FileSystemManager(object):
 
         self._old.pop(key)
 
+    def clear(self):
+        for i in list(self):
+            self.pop(i)
+
     def extend(self, files):
         files = self._process_files(files)
         files = [f for f in files if f not in self._files]
@@ -275,8 +286,8 @@ class FileSystemManager(object):
 
     @staticmethod
     def get_path(path):
-        return os.path.split()[0]
+        return os.path.split(path)[0]
 
     @staticmethod
     def get_filename(path):
-        return os.path.split()[1]
+        return os.path.split(path)[1]
