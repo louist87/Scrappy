@@ -67,7 +67,8 @@ print scrape.files
 On rare occasions, scrappy has trouble inferring the TV series.  When this happens, simply pass the TVDB id number to the `tvdbid` argument when initializing `Scrape`.
 Doing so guaratees that the series is correctly detected.
 
-Be sure to set the `lang` parameter to the correct value, as well.  Shows will likely not be found on TheTVDB if you're searching for a show with the incorrect language!  This parameter defaults to `en`.
+Be sure to set the `lang` parameter to the correct value, as well.  Shows will likely not be found on TheTVDB if you're searching for a show with the incorrect language!
+By default, all languages are searched.
 
 ```python
 scrape = scrappy.Scrape('*kaamelott*', tvdbid='79175', lang='fr')  # tvdbid should be str
