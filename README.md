@@ -41,7 +41,7 @@ scrape = scrappy.Scrape('*.mkv')
 print scrape.files
 ```
 
-```python
+```
 ['its always sunny in philadelphia 101.mkv']
 ```
 
@@ -58,7 +58,7 @@ scrape = scrappy.Scrape(['it's always sunny in philadelphia 101.mkv', '*.avi'])
 print scrape.files
 ```
 
-```python
+```
 ['its always sunny in philadelphia 101.mkv', 'its always sunny in philadelphia 102.avi']
 ```
 
@@ -95,7 +95,7 @@ print scrape.files
 ```
 
 ```
-It'S.Always.Sunny.In.Philadelphia.S01E01.The.Gang.Gets.Racist.mkv
+It's.Always.Sunny.In.Philadelphia.S01E01.The.Gang.Gets.Racist.mkv
 ['its always sunny in philadelphia 101.mkv']
 ```
 
