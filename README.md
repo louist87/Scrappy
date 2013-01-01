@@ -49,7 +49,9 @@ You can also pass sequences to the constructor.  Sequences can be a mix of:
 
 - Paths to individual files
 - Glob patterns
-- Directories  (**note:**  experimental.  No nested directories.  No simlinks.  No non-media files.)
+- Directories
+
+Directories are recursively searched for all files with a video mimetype, and duplicate paths are automatically filtered.
 
 ```python
 scrape = scrappy.Scrape(['it's always sunny in philadelphia 101.mkv', '*.avi'])
