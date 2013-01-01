@@ -10,12 +10,29 @@ import formatters
 import guessit
 import tvdb_api as tvdb
 
-__version__ = '0.1.4 alpha'
+from hachoir_core.error import HachoirError
+from hachoir_core.cmd_line import unicodeFilename
+from hachoir_parser import createParser
+from hachoir_metadata import extractMetadata
+
+__version__ = '0.2.0 alpha'
+
+
+def get_path(path):
+    return os.path.split(path)[0]
+
+
+def get_filename(path):
+    return os.path.split(path)[1]
+
+
+def normalize(s):
+    return s.strip().lower()
 
 
 def levenshtein_distance(s1, s2):
-    s1 = s1.strip().lower()
-    s2 = s2.strip().lower()
+    s1 = normalize(s1)
+    s2 = normalize(s2)
 
     if len(s1) < len(s2):
         return levenshtein_distance(s2, s1)
@@ -26,7 +43,7 @@ def levenshtein_distance(s1, s2):
     for i, c1 in enumerate(s1):
         current_row = [i + 1]
         for j, c2 in enumerate(s2):
-            insertions = previous_row[j + 1] + 1  # j+1 instead of j since previous_row and current_row are one character longer than s2
+            insertions = previous_row[j + 1] + 1
             deletions = current_row[j] + 1
             substitutions = previous_row[j] + (c1 != c2)
             current_row.append(min(insertions, deletions, substitutions))
@@ -58,24 +75,35 @@ class Scrape(object):
 
     _api_key = 'D1BD82E2AE599ADD'
 
-    def __init__(self, media, tvdbid=None, lang='en'):
-    #     assert check_language_settings(lang), 'Invalid language setting.'
+    def __init__(self, media, tvdbid=None, lang=None, confidence=0.0):
+        # TVDB api
+        all_lang = lang or False
+        self._api_params = {'language': lang,
+                            'search_all_languages': all_lang,
+                            'apikey': self._api_key
+                           }
+        self._api = tvdb.Tvdb(**self._api_params)  # TODO:  render interactive and implement a custom UI
 
-        self._api = tvdb.Tvdb(apikey=self._api_key, language=lang)  # TODO:  render interactive and implement a custom UI
+        # self._api = tvdb.Tvdb(apikey=self._api_key,
+        #                       language=lang,
+        #                       search_all_languages=all_lang
+        #                      )  # TODO:  render interactive and implement a custom UI
 
+        # Files
         self._files = FileSystemInterface(media)
         self.filemap = dict((fname, None) for fname in self._files)
         self.revert_filenames = self._files.revert
+
         self.normalized_seriesname = ''
         self.series = None
 
         if tvdbid:  # tolerate users who pass ints
             tvdbid = str(tvdbid)
         self.id = tvdbid
-        self.language = lang
+        self.language = lang  # input validated in tvdb.Tvdb
 
         if not self.id:
-            self._guess_series_name()
+            self._guess_series_name(confidence)
 
     def files():
         doc = "The files property."
@@ -91,25 +119,35 @@ class Scrape(object):
         return locals()
     files = property(**files())
 
-    def _guess_series_name(self):
+    def language():
+        doc = "The language property."
+
+        def fget(self):
+            return self._language
+
+        def fset(self, value):
+            self._api_params['language'] = value
+            self._api = tvdb.Tvdb(**self._api_params)
+            self._language = value
+
+        def fdel(self):
+            del self._language
+        return locals()
+    language = property(**language())
+
+    def _guess_series_name(self, confidence):
         """Guess series based on agreement between infered series names for each file.
 
         return: string
         """
+        guesses = self._guess_from_filename() or self._guess_from_metadata()
 
-        guesses = []
-        for g in (guessit.guess_episode_info(self._files.get_filename(f)) for f in self.files):
-            if 'series' in g:
-                guesses.append(g)  # dictionary of guessed information
-
-        if guesses == []:
-            print "DEBUG WARNING:  no guesses found!"  # DEBUG
-            return None  # perhaps try looking at metadata?
-        else:
+        if guesses:
+            guesses = [g for g in guesses if g.confidence('series') >= confidence]
             high_conf = defaultdict(float)
             normalCount = defaultdict(int)
             for guess in guesses:
-                ntitle = guess['series'].strip().lower()  # normalize title
+                ntitle = normalize(guess['series'])
 
                 normalCount[ntitle] += 1
 
@@ -118,11 +156,39 @@ class Scrape(object):
 
             #   Select title with highest rating / occurrence
             ranked = dict((high_conf[series] * normalCount[series], series) for series in normalCount)
+            self.normalized_seriesname = ranked[sorted(ranked.keys(), reverse=True)[0]] or None
+        else:
+            self.normalized_seriesname = None
 
-        self.normalized_seriesname = ranked[sorted(ranked.keys(), reverse=True)[0]] or None
         return self.normalized_seriesname
 
-    def map_episode_info(self, thresh, comp_fn=compare_strings, lang='en'):
+    def _guess_from_filename(self):
+        guesses = (guessit.guess_episode_info(get_filename(f)) for f in self.files)
+        return [g for g in guesses if 'series' in g]
+
+    def _guess_from_metadata(self):
+        parse = lambda s: s.split(":")
+        guesses = []
+        for filename in self.files:
+            filename = get_filename(filename)
+            filename, realname = unicodeFilename(filename), filename
+            parser = createParser(filename, realname)
+            if parser:
+                try:
+                    metadata = extractMetadata(parser)
+                except HachoirError:
+                    continue
+
+                for line in metadata.exportPlaintext():
+                    entries = dict([parse(normalize(l)) for l in line if 'comment' in l or 'title' in l])
+                    entries = {k: guessit.guess_episode_info(v) for k, v in entries.items()}
+                    if 'title' in entries:
+                        guesses.append(entries['title'])
+                    else:
+                        guesses.append(entries['comment'])
+        return guesses
+
+    def map_episode_info(self, thresh, comp_fn=compare_strings):
         """Map episode information to each file.
 
         thresh : int or float
@@ -131,10 +197,6 @@ class Scrape(object):
 
         comp_fn : fn
             String comparison function that returns a measure of the difference between two strings.
-
-        lang : str
-            Two-letter language code
-            Default = 'en'
 
         return : tuple or None
             None indicates that no matching series was found
@@ -243,13 +305,12 @@ class FileSystemInterface(object):
                     yield os.path.join(path, f)
 
     def rename(self, old, new):
-        import pdb; pdb.set_trace()
         os.rename(old, new)
         self._old[new] = old
         self._old.pop(old)
 
     def revert(self, files=None):
-        files = files or self._old.files()
+        files = files or self._old.keys()
         if not hasattr(files, '__iter__'):
             files = (files,)
 
@@ -283,11 +344,3 @@ class FileSystemInterface(object):
         assert filter(os.path.isfile, files), 'one or more files unreachable'
         self._files.extend(files)
         self._old.update({k: None for k in files})
-
-    @staticmethod
-    def get_path(path):
-        return os.path.split(path)[0]
-
-    @staticmethod
-    def get_filename(path):
-        return os.path.split(path)[1]
