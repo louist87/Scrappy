@@ -79,7 +79,7 @@ Kaamelott.S01.E03.La.Table.De.Breccan.avi
 
 ###Fixing goofs
 
-If you make a mistake, you can always revert changes made on the local filesystem.  The old filenames are stored in `scrape.old_`.  Note that `scrape.old_` only appears **after** the file names have been modified.
+If you make a mistake, you can always revert changes made on the local filesystem.
 
 ```python
 scrape = scrappy.Scrape('its always sunny in philadelphia 101.mkv')
