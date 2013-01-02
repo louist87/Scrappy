@@ -129,11 +129,11 @@ This notably offers the possibility of passing the `--test` flag in order to see
 
 The `--profile` flag should be followed with the name of a profile defined in `scrappy.conf`.  By default, two profiles are provided:
 
-- strict_match
-- english
+- `strict_match`:  Strict matching requirements
+- `english`:  Search for english-language series and metadata
 
 You are encouraged to define your own profiles or to modify existing ones to suit your needs.  Do so by defining values fo any of the following variables:
 
-- confidence		Minimum acceptable confidence in guess when inferring series name [float: 0.0 to 1.0]
-- lang 				Two-letter language code for TheTVDB lookups [str: 'en', 'fr', 'pl', ...]
-- thresh 			Maximum difference factor between inferred series name and TheTVDB query results in order to accept a match [float: 0.0 to 1.0]
+- `confidence`:  Minimum acceptable confidence in guess when inferring series name [float: 0.0 to 1.0]
+- `lang`:  Two-letter language code for TheTVDB lookups [str: 'en', 'fr', 'pl', ...]
+- `thresh`:  Maximum difference factor between inferred series name and TheTVDB query results in order to accept a match [float: 0.0 to 1.0]
