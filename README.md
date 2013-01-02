@@ -109,11 +109,9 @@ To start the interactive GUI application, invoke the `scrappy.py` script without
 Launching Scrappy *with* command-line arguments will launch the CLI app.  When using the command-line app, you are free to either define all of the parameters in the form of command-line arguments,
 or use the settings defined in the config file (`scrappy/scrappy.conf`)
 
-Command-line arguments are as follow:
+The Scrappy application docstring is as follows:
 
 ```
-Scrappy:  Rename media files based on scraped information.
-
 Usage:  scrappy [PATH] ... [options]
 
 -a --auto               Automatically scrape and rename without user interaction.
