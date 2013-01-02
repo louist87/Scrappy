@@ -10,7 +10,6 @@ Usage:  scrappy [PATH] ... [options]
 --scan-individual       Evaluate series information individually for each file.
 -c CONF --cfg CONF      User alternate config file [default: scrappy.conf]
 -t --test               Test run.  Do not modify files.
--v --verbose            Print verbose output
 """
 
 from ConfigParser import SafeConfigParser
@@ -45,6 +44,7 @@ def parse_arguments():
 def autoscrape():
     path, kwargs, cli = parse_arguments()
 
+    kwargs = kwargs.update(CFG.items('Auto'))
     if 'thresh' in kwargs:
         thresh = kwargs.pop('thresh')
     else:
@@ -56,7 +56,18 @@ def autoscrape():
 
 
 def profile_scrape(profile):
-    pass
+    path, kwargs, cli = parse_arguments()
+
+    kwargs = kwargs.update(CFG.items(profile))
+    if 'thresh' in kwargs:
+        thresh = kwargs.pop('thresh')
+    else:
+        thresh = 0.0
+
+    s = scrappy.Scrape(path, **kwargs)
+    if s.map_episode_info(thresh):
+        s.rename_files(test=cli['test'])
+
 
 
 if __name__ == '__main__':
