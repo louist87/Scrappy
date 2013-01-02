@@ -257,6 +257,7 @@ class FileSystemInterface(object):
             media = (media,)
 
         self._files = self._process_files(media)
+        assert self._files, 'no data'
         assert filter(os.path.isfile, self._files), 'one or more files unreachable'
         self._old = {f: None for f in self._files}
 
