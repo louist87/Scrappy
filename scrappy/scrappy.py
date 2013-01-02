@@ -7,9 +7,10 @@ Usage:  scrappy [PATH] ... [options]
 -a --auto               Automatically scrape and rename without user interaction.
 -p --profile            User-specified profile
 -l LANG --lang LANG     Specify language code [default: en].
---scan-individual       Evaluate series information individually for each file.
--c CONF --cfg CONF      User alternate config file [default: scrappy.conf]
+--confidence            Lower bound to consider a guessed series name [default: 0.]
+--thresh                Threshold for series name matching with TVDB query [default: 0.]
 -t --test               Test run.  Do not modify files.
+-c CONF --cfg CONF      Use alternate config file [default: scrappy.conf]
 """
 
 from ConfigParser import SafeConfigParser
@@ -76,5 +77,5 @@ if __name__ == '__main__':
     elif ARGS['--profile']:
         profile_scrape()
     else:
-        import scrappy.gui
+        import gui
         scrappy.gui.start(CFG, ARGS)

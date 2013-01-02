@@ -102,4 +102,40 @@ It's.Always.Sunny.In.Philadelphia.S01E01.The.Gang.Gets.Racist.mkv
 
 ##Application
 
-Coming Soon
+Scrappy also functions as a command-line and GUI application.
+
+To start the interactive GUI application, invoke the `scrappy.py` script without any arguments.
+
+Launching Scrappy *with* command-line arguments will launch the CLI app.  When using the command-line app, you are free to either define all of the parameters in the form of command-line arguments,
+or use the settings defined in the config file (`scrappy/scrappy.conf`)
+
+Command-line arguments are as follow:
+
+```
+Scrappy:  Rename media files based on scraped information.
+
+Usage:  scrappy [PATH] ... [options]
+
+-a --auto               Automatically scrape and rename without user interaction.
+-p --profile            User-specified profile
+-l LANG --lang LANG     Specify language code [default: en].
+--confidence            Lower bound to consider a guessed series name [default: 0.]
+--thresh                Threshold for series name matching with TVDB query [default: 0.]
+-t --test               Test run.  Do not modify files.
+-c CONF --cfg CONF      Use alternate config file [default: scrappy.conf]
+```
+
+The `Auto` settings defined in `scrappy.conf` should work well under most circumstances, and it is highly recommended that you first attempt to rename files using the `--auto` flag.
+Passing arguments in addition to `--auto` (or `--profile`) will override the vaules defined in the configuration file. 
+This notably offers the possibility of passing the `--test` flag in order to see how files will be renamed before modifying the local filesystem.
+
+The `--profile` flag should be followed with the name of a profile defined in `scrappy.conf`.  By default, two profiles are provided:
+
+- strict_match
+- english
+
+You are encouraged to define your own profiles or to modify existing ones to suit your needs.  Do so by defining values fo any of the following variables:
+
+- confidence		Minimum acceptable confidence in guess when inferring series name [float: 0.0 to 1.0]
+- lang 				Two-letter language code for TheTVDB lookups [str: 'en', 'fr', 'pl', ...]
+- thresh 			Maximum difference factor between inferred series name and TheTVDB query results in order to accept a match [float: 0.0 to 1.0]
