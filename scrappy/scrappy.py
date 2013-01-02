@@ -15,7 +15,7 @@ Usage:  scrappy [PATH] ... [options]
 
 from ConfigParser import SafeConfigParser
 from docopt import docopt
-import scrappy.core as scrappy
+import core as scrappy
 
 ARGS = docopt(__doc__, version=scrappy.__version__)
 if not ARGS['PATH']:
@@ -27,17 +27,43 @@ if not CFG.read(ARGS['--cfg']):  # call to CFG.read also loads file if it exists
     raise IOError('Configuration file not found.')
 
 
+def parse_arguments():
+    path = ARGS.pop('PATH')
+
+    kwargs = {}
+    cli = {}
+    for k in ARGS:
+        k = k.strip('-')
+        if k not in ('auto', 'profile', 'scan-individual', 'cfg', 'test', 'verbose'):
+            kwargs[k] = ARGS['--' + k]
+        else:
+            cli[k] = ARGS['--' + k]
+
+    return path, kwargs, cli
+
+
 def autoscrape():
-    pass
+    path, kwargs, cli = parse_arguments()
+
+    if 'thresh' in kwargs:
+        thresh = kwargs.pop('thresh')
+    else:
+        thresh = 0.0
+
+    s = scrappy.Scrape(path, **kwargs)
+    if s.map_episode_info(thresh):
+        s.rename_files(test=cli['test'])
 
 
 def profile_scrape(profile):
     pass
 
-if ARGS['--auto']:
-    autoscrape()
-elif ARGS['--profile']:
-    profile_scrape()
-else:
-    import scrappy.gui
-    scrappy.gui.start(CFG, ARGS)
+
+if __name__ == '__main__':
+    if ARGS['--auto']:
+        autoscrape()
+    elif ARGS['--profile']:
+        profile_scrape()
+    else:
+        import scrappy.gui
+        scrappy.gui.start(CFG, ARGS)

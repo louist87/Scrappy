@@ -15,7 +15,7 @@ from hachoir_core.cmd_line import unicodeFilename
 from hachoir_parser import createParser
 from hachoir_metadata import extractMetadata
 
-__version__ = '0.2.0 alpha'
+__version__ = '0.2.1 alpha'
 
 
 def get_path(path):
@@ -143,7 +143,7 @@ class Scrape(object):
         guesses = self._guess_from_filename() or self._guess_from_metadata()
 
         if guesses:
-            guesses = [g for g in guesses if g.confidence('series') >= confidence]
+            guesses = [g for g in guesses if g.confidence('series') > confidence]
             high_conf = defaultdict(float)
             normalCount = defaultdict(int)
             for guess in guesses:
