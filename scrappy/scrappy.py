@@ -69,8 +69,6 @@ def profile_scrape(profile):
     if s.map_episode_info(thresh):
         s.rename_files(test=cli['test'])
 
-
-
 if __name__ == '__main__':
     if ARGS['--auto']:
         autoscrape()

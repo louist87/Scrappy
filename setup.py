@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 from setuptools import setup
-from scrappy.core import __version__
 
 setup(
     name='Scrappy',
-    version=__version__,
+    version='0.2.1 alpha',
     author='Louis Thibault',
-    author_email='',
+    author_email='louist87@gmail.com',
     packages=['scrappy'],
     include_package_data=True,
     install_requires=['guessit', 'tvdb_api', 'ez_setup', 'titlecase', 'hachoir-metadata'],
