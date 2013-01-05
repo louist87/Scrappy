@@ -13,5 +13,5 @@ setup(
     license='GPL 3.0',
     description='Rename video files based on information scraped from thetvdb.com',
     keywords=["TVDB", "thetvdb", "rename", "broadcatching", "media"],
-    long_description=open('README.md').read()
+    long_description=open('README.rst').read()
 )
