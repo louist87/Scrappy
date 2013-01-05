@@ -6,8 +6,11 @@ Rename video files based on information scraped from thetvdb.com!
 Installation
 ============
 
-Cloning the repository is the preferred way of installing Scrappy, for
-the time being. PIP package coming soon.
+::
+
+    pip install Scrappy --user
+
+::
 
 Usage
 =====
