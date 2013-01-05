@@ -11,7 +11,7 @@ Cloning the repository is the preferred way of installing Scrappy, for the time 
 
 ##Simple API Call
 
-``Python
+```Python
 import scrappy.core as scrappy
 
 # Initialize a scrape
@@ -22,11 +22,11 @@ scrape = scrappy.Scrape('its always sunny in philadelphia 101.mkv')
 err = .2  # Max error (difference coefficient) to accept result
 if scrape.map_episode_info(err):  # Returns false if series not found.  Try increasing err.
     scrape.rename_files(test=True)  # test file rename (no changes committed when test == True)
-``
+```
 
-``
+```
 It's.Always.Sunny.In.Philadelphia.S01E01.The.Gang.Gets.Racist.mkv
-``
+```
 
 ##Advanced API Use
 
@@ -36,14 +36,14 @@ You can use glob matching with the scrape constructor.  Note that **all** video 
 
 Again, for good measure:  Create a `Scrape` object **for each series**.
 
-``python
+```python
 scrape = scrappy.Scrape('*.mkv')
 print scrape.files
-``
+```
 
-``
+```
 ['its always sunny in philadelphia 101.mkv']
-``
+```
 
 You can also pass sequences to the constructor.  Sequences can be a mix of:
 
@@ -53,14 +53,14 @@ You can also pass sequences to the constructor.  Sequences can be a mix of:
 
 Directories are recursively searched for all files with a video mimetype, and duplicate paths are automatically filtered.
 
-``python
+```python
 scrape = scrappy.Scrape(['it's always sunny in philadelphia 101.mkv', '*.avi'])
 print scrape.files
-``
+```
 
-``
+```
 ['its always sunny in philadelphia 101.mkv', 'its always sunny in philadelphia 102.avi']
-``
+```
 
 ###Eliminating Guesswork
 
@@ -70,21 +70,21 @@ Doing so guaratees that the series is correctly detected.
 Be sure to set the `lang` parameter to the correct value, as well.  Shows will likely not be found on TheTVDB if you're searching for a show with the incorrect language!
 By default, all languages are searched.
 
-``python
+```python
 scrape = scrappy.Scrape('*kaamelott*', tvdbid='79175', lang='fr')  # tvdbid should be str
 if scrape.map_episode_info(.1):
     scrape.rename_files(test=True)
-``
+```
 
-``
+```
 Kaamelott.S01.E03.La.Table.De.Breccan.avi
-``
+```
 
 ###Fixing goofs
 
 If you make a mistake, you can always revert changes made on the local filesystem.
 
-``python
+```python
 scrape = scrappy.Scrape('its always sunny in philadelphia 101.mkv')
 err = .2  # Max error (difference coefficient) to accept result
 if scrape.get_series_info(err):
@@ -93,12 +93,12 @@ if scrape.get_series_info(err):
 print scrape.files
 scrape.revertFilenames()
 print scrape.files
-``
+```
 
-``
+```
 It's.Always.Sunny.In.Philadelphia.S01E01.The.Gang.Gets.Racist.mkv
 ['its always sunny in philadelphia 101.mkv']
-``
+```
 
 ##Application
 
@@ -111,7 +111,7 @@ or use the settings defined in the config file (`scrappy/scrappy.conf`)
 
 The Scrappy application docstring is as follows:
 
-``
+```
 Usage:  scrappy [PATH] ... [options]
 
 -a --auto               Automatically scrape and rename without user interaction.
@@ -121,7 +121,7 @@ Usage:  scrappy [PATH] ... [options]
 --thresh                Threshold for series name matching with TVDB query [default: 0.]
 -t --test               Test run.  Do not modify files.
 -c CONF --cfg CONF      Use alternate config file [default: scrappy.conf]
-``
+```
 
 The `Auto` settings defined in `scrappy.conf` should work well under most circumstances, and it is highly recommended that you first attempt to rename files using the `--auto` flag.
 Passing arguments in addition to `--auto` (or `--profile`) will override the vaules defined in the configuration file. 
