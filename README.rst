@@ -120,7 +120,10 @@ filesystem.
     ['its always sunny in philadelphia 101.mkv']
 
 Application
------------
+===========
+
+Manual Scraping
+---------------
 
 Scrappy also functions as a command-line and GUI application.
 
@@ -146,6 +149,13 @@ The Scrappy application docstring is as follows:
     -t --test               Test run.  Do not modify files.
     -c CONF --cfg CONF      Use alternate config file [default: scrappy.conf]
 
+
+Automatic Scraping and Profiles
+-------------------------------
+
+Auto
+~~~~
+
 The ``Auto`` settings defined in ``scrappy.conf`` should work well under
 most circumstances, and it is highly recommended that you first attempt
 to rename files using the ``--auto`` flag. Passing arguments in addition
@@ -153,6 +163,9 @@ to ``--auto`` (or ``--profile``) will override the vaules defined in the
 configuration file. This notably offers the possibility of passing the
 ``--test`` flag in order to see how files will be renamed before
 modifying the local filesystem.
+
+Profile
+~~~~~~~
 
 The ``--profile`` flag should be followed with the name of a profile
 defined in ``scrappy.conf``. By default, two profiles are provided:
@@ -168,6 +181,5 @@ following variables:
    series name [float: 0.0 to 1.0]
 -  ``lang``: Two-letter language code for TheTVDB lookups [str: 'en',
    'fr', 'pl', ...]
--  ``thresh``: Maximum difference factor between inferred series name
-   and TheTVDB query results in order to accept a match [float: 0.0 to
-   1.0]
+-  ``thresh``: Maximum acceptable difference factor between inferred series name
+   and TheTVDB query results [float: 0.0 to 1.0]
