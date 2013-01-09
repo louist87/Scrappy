@@ -5,7 +5,7 @@ from itertools import chain, repeat
 from collections import defaultdict, deque
 from mimetypes import guess_type
 
-import formatters
+import scrappy.formatters as formatters
 
 import guessit
 import tvdb_api as tvdb

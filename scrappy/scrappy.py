@@ -17,7 +17,7 @@ Usage:  scrappy [PATH] ... [options]
 from ConfigParser import SafeConfigParser
 from os.path import dirname, join
 from docopt import docopt
-import core as scrappy
+import scrappy.core as scrappy
 
 ARGS = docopt(__doc__, version=scrappy.__version__)
 
