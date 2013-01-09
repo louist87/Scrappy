@@ -9,6 +9,7 @@ setup(
     author_email='louist87@gmail.com',
     packages=['scrappy'],
     include_package_data=True,
+    setup_requires=['guessit', 'tvdb_api', 'ez_setup', 'titlecase', 'hachoir-metadata'],
     install_requires=['guessit', 'tvdb_api', 'ez_setup', 'titlecase', 'hachoir-metadata'],
     url='https://github.com/louist87/scrappy',
     license='GPL 3.0',

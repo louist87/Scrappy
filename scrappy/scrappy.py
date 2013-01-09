@@ -6,6 +6,7 @@ Usage:  scrappy [PATH] ... [options]
 
 -a --auto               Automatically scrape and rename without user interaction.
 -p --profile            User-specified profile
+-i --tvdbid             Specify TVDB id
 -l LANG --lang LANG     Specify language code [default: en].
 --confidence            Lower bound to consider a guessed series name [default: 0.]
 --thresh                Threshold for series name matching with TVDB query [default: 0.]
