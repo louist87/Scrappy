@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 from setuptools import setup
-from scrappy.core import __version__
 
 setup(
     name='Scrappy',
-    version=__version__,
+    version="0.2.6 alpha",
     author='Louis Thibault',
     author_email='louist87@gmail.com',
     packages=['scrappy'],

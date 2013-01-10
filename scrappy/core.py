@@ -15,8 +15,6 @@ from hachoir_core.cmd_line import unicodeFilename
 from hachoir_parser import createParser
 from hachoir_metadata import extractMetadata
 
-__version__ = '0.2.5 alpha'
-
 
 def get_path(path):
     return os.path.split(path)[0]
