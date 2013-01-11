@@ -19,7 +19,7 @@ from os.path import dirname, join
 from docopt import docopt
 import core as scrappy
 
-ARGS = docopt(__doc__, version="0.2.8 alpha")
+ARGS = docopt(__doc__, version="0.2.8 beta")
 
 CFG = SafeConfigParser()
 cfg_file = ARGS['--cfg'] or join(dirname(__file__), 'scrappy.conf')
