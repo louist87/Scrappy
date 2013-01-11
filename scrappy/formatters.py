@@ -15,7 +15,7 @@ class Formatter(object):
         return self.sep.join(self.format)
 
     def __repr__(self):
-        return "<Formatter object> {0}, sep='{1}', parser={2}".format(self.format,
+        return u"<Formatter object> {0}, sep='{1}', parser={2}".format(self.format,
                                                                       self.sep,
                                                                       self.parser)
 
@@ -32,7 +32,7 @@ class Formatter(object):
         elif target in ep.season.show.data.keys():
             return ep.season.show.data[target]
 
-        return ''
+        return u''
 
     def chain_fn(self, chain, arg):
         for fn in chain:
@@ -45,13 +45,13 @@ stripper = lambda s: s.strip()
 zfiller = lambda s: s.zfill(2)
 all_lower = lambda s: s.lower()
 all_upper = lambda s: s.capitalize()
-dot_sep = lambda s: '.'.join([c for c in s.split(' ') if c])
+dot_sep = lambda s: u'.'.join([c for c in s.split(' ') if c])
 
 
 def create_SXXEXX_ecode(snum, enum):
     """e.g.: S01E22
     """
-    return ''.join(('S', snum, 'E', enum))
+    return u''.join(('S', snum, 'E', enum))
 
 
 default_parser = {
@@ -61,6 +61,6 @@ default_parser = {
                   'episodename': [stripper, zfiller, titlecase, dot_sep]
                  }
 
-default = Formatter('{seriesname}{sep}S{seasonnumber}{sep}E{episodenumber}{sep}{episodename}',
+default = Formatter(u'{seriesname}{sep}S{seasonnumber}{sep}E{episodenumber}{sep}{episodename}',
                     sep='.', parser=default_parser
                    )
