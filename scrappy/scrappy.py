@@ -86,6 +86,7 @@ def main():
     elif ARGS['--profile']:
         profile_scrape()
     elif not ARGS['PATH']:
+        raise NotImplementedError('GUI application will be implemented in version 1')
         import scrappy.gui as gui
         gui.start(CFG, ARGS)
     else:
