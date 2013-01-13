@@ -241,7 +241,7 @@ class Scrape(object):
         for fname in self.files:
             ep = self.filemap[fname]
             if ep is not None:
-                newname = '{0}.{ext}'.format(formatter(ep), ext=fname.split('.')[-1])
+                newname = u'{0}.{ext}'.format(formatter(ep), ext=fname.split('.')[-1])
                 if not test:
                     self._files.rename(fname, newname)
                 else:
@@ -259,7 +259,7 @@ class FileSystemInterface(object):
         self._old = {f: None for f in self._files}
 
     def __repr__(self):
-        return "<FileSystemInterface> containing {0} files".format(len(self._files))
+        return u"<FileSystemInterface> containing {0} files".format(len(self._files))
 
     def __iter__(self):
         for f in self._files:
