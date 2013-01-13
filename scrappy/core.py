@@ -77,17 +77,11 @@ class Scrape(object):
 
     def __init__(self, media, tvdbid=None, lang=None, confidence=0.0):
         # TVDB api
-        all_lang = lang == None
         self._api_params = {'language': lang,
-                            'search_all_languages': all_lang,
+                            'search_all_languages': lang == None,
                             'apikey': self._api_key
                            }
         self._api = tvdb.Tvdb(**self._api_params)  # TODO:  render interactive and implement a custom UI
-
-        # self._api = tvdb.Tvdb(apikey=self._api_key,
-        #                       language=lang,
-        #                       search_all_languages=all_lang
-        #                      )  # TODO:  render interactive and implement a custom UI
 
         # Files
         self._files = FileSystemInterface(media)
