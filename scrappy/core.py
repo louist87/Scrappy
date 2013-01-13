@@ -259,7 +259,7 @@ class FileSystemInterface(object):
 
         self._files = self._process_files(media)
         assert self._files, 'no data'
-        assert filter(os.path.isfile, self._files), 'one or more files unreachable'
+        assert filter(os.path.isfile, self._files), 'no file objects'
         self._old = {f: None for f in self._files}
 
     def __repr__(self):
@@ -294,7 +294,7 @@ class FileSystemInterface(object):
         for f in seen:
             mtype = guess_type(f, False)[0]
             if mtype and 'video' in mtype:
-                files.append(f)
+                files.append(self._to_unicode(f))
 
         return sorted(files)
 
@@ -305,6 +305,17 @@ class FileSystemInterface(object):
             for d, dirs, files in os.walk(path):
                 for f in files:
                     yield os.path.join(path, f)
+
+    def _to_unicode(string):
+        """Converts a string to Unicode"""
+        if type(string) == unicode:  # Already unicode!
+            return string
+
+        import chardet
+        encoding = chardet.detect(string)["encoding"]
+        print "_to_unicode called, chardet.detect says %s" % chardet.detect(string)
+        string = string.decode(encoding)
+        return string
 
     def rename(self, old, new):
         os.rename(old, new)
