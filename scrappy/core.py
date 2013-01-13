@@ -184,7 +184,7 @@ class Scrape(object):
                     entries = {k: guessit.guess_episode_info(v) for k, v in entries.items()}
                     if 'title' in entries:
                         guesses.append(entries['title'])
-                    else:
+                    elif 'comment' in entries:
                         guesses.append(entries['comment'])
         return guesses
 
