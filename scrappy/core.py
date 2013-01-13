@@ -242,6 +242,7 @@ class Scrape(object):
             ep = self.filemap[fname]
             if ep is not None:
                 newname = u'{0}.{ext}'.format(formatter(ep), ext=fname.split('.')[-1])
+                newname = os.path.join(get_path(fname), newname)
                 if not test:
                     self._files.rename(fname, newname)
                 else:

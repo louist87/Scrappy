@@ -89,7 +89,7 @@ with the incorrect language! By default, all languages are searched.
 
 ::
 
-    scrape = scrappy.Scrape('*kaamelott*', tvdbid='79175', lang='fr')  # tvdbid should be str
+    scrape = scrappy.Scrape('*kaamelott*', tvdbid=79175, lang='fr')  # tvdbid should be int
     if scrape.map_episode_info(.1):
         scrape.rename_files(test=True)
 
