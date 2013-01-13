@@ -200,10 +200,8 @@ class Scrape(object):
         return : tuple or None
             None indicates that no matching series was found
         """
-        tvdbid = self.id or False  # Do **not** use None.  Conversion to int fails.
-
         assert self.id or self.normalized_seriesname is not '', 'could not identify TV series for scrape'
-        lookup_key = int(tvdbid) or self.normalized_seriesname
+        lookup_key = self.id or self.normalized_seriesname
 
         try:
             self.series = self._api[lookup_key]  # lookup series name
