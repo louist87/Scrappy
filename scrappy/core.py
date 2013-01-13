@@ -97,8 +97,9 @@ class Scrape(object):
         self.normalized_seriesname = ''
         self.series = None
 
-        if tvdbid:  # tolerate users who pass ints
-            tvdbid = str(tvdbid)
+        if tvdbid:  # tolerate users who pass str
+            if isinstance(tvdbid, str) or isinstance(tvdbid, u''):
+                tvdbid = int(tvdbid.strip())
         self.id = tvdbid
         self.language = lang  # input validated in tvdb.Tvdb
 
