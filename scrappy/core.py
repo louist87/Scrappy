@@ -306,7 +306,7 @@ class FileSystemInterface(object):
                 for f in files:
                     yield os.path.join(path, f)
 
-    def _to_unicode(string):
+    def _to_unicode(self, string):
         """Converts a string to Unicode"""
         if type(string) == unicode:  # Already unicode!
             return string
