@@ -77,7 +77,7 @@ class Scrape(object):
 
     def __init__(self, media, tvdbid=None, lang=None, confidence=0.0):
         # TVDB api
-        all_lang = lang or False
+        all_lang = lang == None
         self._api_params = {'language': lang,
                             'search_all_languages': all_lang,
                             'apikey': self._api_key
