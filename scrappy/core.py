@@ -313,7 +313,6 @@ class FileSystemInterface(object):
 
         import chardet
         encoding = chardet.detect(string)["encoding"]
-        print "_to_unicode called, chardet.detect says %s" % chardet.detect(string)
         string = string.decode(encoding)
         return string
 
