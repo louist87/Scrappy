@@ -88,7 +88,7 @@ class Scrape(object):
         self.filemap = dict((fname, None) for fname in self._files)
         self.revert_filenames = self._files.revert
 
-        self.normalized_seriesname = ''
+        self.normalized_seriesname = None
         self.series = None
 
         if tvdbid:  # tolerate users who pass str
@@ -200,7 +200,7 @@ class Scrape(object):
         return : tuple or None
             None indicates that no matching series was found
         """
-        assert self.id or self.normalized_seriesname is not '', 'could not identify TV series for scrape'
+        assert self.id or self.normalized_seriesname, 'could not identify TV series for scrape'
         lookup_key = self.id or self.normalized_seriesname
 
         try:
