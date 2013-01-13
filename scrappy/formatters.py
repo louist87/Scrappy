@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 from re import findall
 from itertools import repeat
 from titlecase import titlecase

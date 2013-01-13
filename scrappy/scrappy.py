@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 """Scrappy:  Rename media files based on scraped information.
 
@@ -19,7 +20,7 @@ from os.path import dirname, join
 from docopt import docopt
 import core as scrappy
 
-ARGS = docopt(__doc__, version="0.2.8 beta 2")
+ARGS = docopt(__doc__, version="0.2.8 beta 3")
 
 CFG = SafeConfigParser()
 cfg_file = ARGS['--cfg'] or join(dirname(__file__), 'scrappy.conf')
