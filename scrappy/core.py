@@ -166,7 +166,11 @@ class Scrape(object):
         guesses = []
         for filename in self.files:
             filename = get_filename(filename)
-            filename, realname = unicodeFilename(filename), filename
+            if not isinstance(filename, unicode):
+                filename, realname = unicodeFilename(filename), filename
+            else:
+                realname = filename
+
             parser = createParser(filename, realname)
             if parser:
                 try:
