@@ -3,14 +3,16 @@
 
 import os
 from glob import glob
+from functools import partial
+from mimetypes import guess_type
 from itertools import chain, repeat
 from collections import defaultdict, deque
-from mimetypes import guess_type
 
 import formatters
 
 import guessit
 import tvdb_api as tvdb
+from tvdb_ui import BaseUI
 
 from hachoir_core.error import HachoirError
 from hachoir_core.cmd_line import unicodeFilename
@@ -75,27 +77,67 @@ class Scrape(object):
 
     _api_key = 'D1BD82E2AE599ADD'
 
-    def __init__(self, media, tvdbid=None, lang=None, confidence=0.0):
+    def __init__(self,
+                 media,
+                 interactive=False,
+                 grabber=None,
+                 tvdbid=None,
+                 lang=None,
+                 confidence=0.0
+                ):
+
+        """media : str or unicode
+            Path to file, directory or glob pattern to media files.
+
+        interactive : bool
+            When true, tvdb_api interactive console is used to select from
+            multiple results.
+
+        grabber : tvdb_ui.BaseUI sublcass instance or None
+            Grabs appropriate TVDB query result.  If not None,
+            this option overrides `interactive`.
+
+            If None, uses default QueryGrabber.
+
+        tvdbid : int or str
+            TVDB ID number for the show being queried.
+
+        lang : str or None
+            Two-character language abbreviation (e.g.: 'en')
+
+        confidence : float or int
+            Maximum allowable error to select a series name guess.
+            IMPORTANT NOTE:  The range of values that can be passed to this
+                             parameter depensd on the `comp_fn` parameter of
+                             _guess_series_name.  By default, the range is continuous
+                             between 0.0 and 1.0
+        """
+        self.normalized_seriesname = None
+
         # TVDB api
+        if not grabber and not interactive:
+            grabber = partial(QueryGrabber, parent=self)
+
         self._api_params = {'language': lang,
                             'search_all_languages': lang == None,
-                            'apikey': self._api_key
+                            'apikey': self._api_key,
+                            'interactive': interactive,
+                            'custom_ui': grabber
                            }
         self._api = tvdb.Tvdb(**self._api_params)  # TODO:  render interactive and implement a custom UI
+
+        # Other params
+        self.id = tvdbid
+        self.language = lang  # input validated in tvdb.Tvdb
+        self.series = None
+        if tvdbid:  # tolerate users who pass str
+            if isinstance(tvdbid, str) or isinstance(tvdbid, unicode):
+                tvdbid = int(tvdbid.strip())
 
         # Files
         self._files = FileSystemInterface(media)
         self.filemap = dict((fname, None) for fname in self._files)
         self.revert_filenames = self._files.revert
-
-        self.normalized_seriesname = None
-        self.series = None
-
-        if tvdbid:  # tolerate users who pass str
-            if isinstance(tvdbid, str) or isinstance(tvdbid, unicode):
-                tvdbid = int(tvdbid.strip())
-        self.id = tvdbid
-        self.language = lang  # input validated in tvdb.Tvdb
 
         if not self.id:
             self._guess_series_name(confidence)
@@ -247,6 +289,72 @@ class Scrape(object):
                     self._files.rename(fname, newname)
                 else:
                     print newname
+
+
+class QueryGrabber(BaseUI):
+    def __init__(self,
+                 config,
+                 log=None,
+                 parent=None,
+                 comp_precision=2,
+                 comp_fn=compare_strings):
+
+        BaseUI.__init__(self, config, log)
+
+        if parent == None:
+            raise ValueError('no reference to parent Scrape instance.')
+        self.parent = parent
+        self.comp_fn = comp_fn
+        self.comp_precision = comp_precision
+
+    def selectSeries(self, allSeries):
+        # Filter by language
+        allSeries = self.language_filter(allSeries)
+        if len(allSeries) == 1:
+            return allSeries[0]
+
+        # Filter by popularity metrics
+        return self.popularity_filter(allSeries)
+
+    def language_filter(self, allSeries):
+        lang = self.parent.language
+        return [show for show in allSeries if show['language'] == lang or lang == None]
+
+    def popularity_filter(self, allSeries):
+        comp = lambda s: self.comp_fn(s['seriesname'].encode("UTF-8", "ignore"), self.parent.normalized_seriesname)
+        match = map(self._rounded, map(comp, allSeries))
+
+        unique = set()
+        for m in match:
+            if m not in unique:
+                unique.add(m)
+        highval = max(unique)
+        highmatch = [allSeries[i] for i, m in enumerate(match) if m == highval]
+
+        if len(highmatch) == 1:
+            return highmatch[0]
+
+        popularity = zip(highmatch, map(self._popularity, highmatch))
+        return reduce(self._pop_contest, popularity)[0]
+
+    def _rounded(self, factor):
+        mvdec = 10 ** self.comp_precision  # move decimal point
+        return int(round(factor, self.comp_precision) * mvdec)
+
+    def _pop_contest(self, s1, s2):
+        s1_show, s1_pop = s1
+        s2_show, s2_pop = s2
+        if s1_pop > s2_pop:
+            return s2_show, s2_pop
+        return s1_show, s1_pop
+
+    def _popularity(self, show):
+        tvdbid = show['id']
+        showdat = tvdb.Tvdb(language=self.parent.language, apikey=self.parent._api_key)[tvdbid].data
+        score = int(showdat['ratingcount']) / float(showdat['rating'])
+        if score > 0:
+            return score
+        return 0.0
 
 
 class FileSystemInterface(object):
