@@ -1,7 +1,7 @@
 Scrappy
 =======
 
-Scrappy provides an intuitive interfae for renaming video files based on information scraped from thetvdb.com!
+Scrappy provides an intuitive interface for renaming video files based on information scraped from thetvdb.com!
 In short, you can turn something like ``bsg_301.avi`` into ``Battlestar.Galactica.S03.E01.Occupation``.
 
 Scrappy provides a command-line app and a GUI app (coming soon), as well as a documented API for integrating
