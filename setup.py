@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='Scrappy',
-    version="0.2.10 beta 9",
+    version="0.2.10 beta 10",
     author='Louis Thibault',
     author_email='louist87@gmail.com',
     packages=['scrappy'],
