@@ -37,7 +37,14 @@ Simple API Call
 Advanced API Use
 ~~~~~~~~~~~~~~~~
 
-For information on glob-pattern matching, selecting from multiple results, and fixing errors, see the `API wiki page <https://github.com/louist87/Scrappy/wiki/API>`_.
+The scrappy API provides options for:
+
+- Glob pattern matching
+- Selecting from file name formats (and defining custom formatters)
+- Selecting from multiple TVDB query results
+- Fixing errors
+
+Documentation for these functions can be found on the `API wiki page <https://github.com/louist87/Scrappy/wiki/API>`_.
 
 Application
 ===========
