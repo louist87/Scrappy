@@ -11,88 +11,56 @@ Usage:  scrappy [PATH] ... [options]
 -l LANG --lang LANG     Specify language code [default: en].
 --confidence            Lower bound to consider a guessed series name [default: 0.]
 --thresh                Threshold for series name matching with TVDB query [default: 0.]
+--interactive           Manually select show from TVDB query results.
 -t --test               Test run.  Do not modify files.
 -c --cfg                Use alternate config file
 """
 
-from ConfigParser import SafeConfigParser
+from yaml import load
 from os.path import dirname, join
 from docopt import docopt
 import core as scrappy
 
 ARGS = docopt(__doc__, version="0.2.10 beta 6")
-
-CFG = SafeConfigParser()
-cfg_file = ARGS['--cfg'] or join(dirname(__file__), 'scrappy.conf')
-if not CFG.read(cfg_file):  # also loads file if it exists
-    raise IOError('Configuration file not found.')
+scrapeargs = ('tvdbid', 'lang', 'confidence', 'interactive')
+# controlargs = ('auto', 'profile', 'cfg', 'PATH')
 
 
-def parse_arguments():
-    path = ARGS.pop('PATH')
+ARGS = {k.strip('-'): v for k, v in ARGS.items()}
+with open(ARGS['cfg'] or join(dirname(__file__), 'scrappy.yml')) as f:
+    CFG = load(f)
 
-    kwargs = {}
-    coms = {}
-    for k in ARGS:
-        k = k.strip('-')
-        if k not in ('auto', 'profile', 'scan-individual', 'cfg', 'test', 'verbose'):
-            kwargs[k] = ARGS['--' + k]
-        else:
-            coms[k] = ARGS['--' + k]
-
-    return path, kwargs, coms
+params = CFG['Default'] or {}
 
 
-def autoscrape():
-    path, kwargs, coms = parse_arguments()
-    kwargs.update(CFG.items('Auto'))
-    if 'thresh' in kwargs:
-        thresh = kwargs.pop('thresh')
-    else:
-        thresh = 0.0
-
-    _execute_scrape(thresh, path, kwargs, coms)
+def load_profile(params, profile_name):
+    return params.update(CFG['Profiles'][profile_name])
 
 
-def profile_scrape(profile):
-    path, kwargs, coms = parse_arguments()
-    kwargs.update(CFG.items(profile))
-    if 'thresh' in kwargs:
-        thresh = kwargs.pop('thresh')
-    else:
-        thresh = 0.0
-
-    _execute_scrape(thresh, path, kwargs, coms)
+def parse_arguments(args, params):
+    params.update(args)
+    return params
 
 
-def default_scrape():
-    path, kwargs, coms = parse_arguments()
-    kwargs.update(CFG.items('Default'))  # Get global defaults
-    thresh = kwargs.pop('thresh')
-
-    s = scrappy.Scrape(path, **kwargs)
-    if s.map_episode_info(thresh):
-        s.rename_files(test=coms['test'])
-
-
-def _execute_scrape(thresh, path, kwargs, coms):
-    s = scrappy.Scrape(path, **kwargs)
-    if s.map_episode_info(thresh):
-        s.rename_files(test=coms['test'])
+def do_scrape(params):
+    s = scrappy.Scrape(ARGS['PATH'], **{k: v for k, v in params.items() if k in scrapeargs})
+    if s.map_episode_info(thresh=params['thresh']):
+        s.rename_files(test=params['test'])
 
 
 def main():
-    if ARGS['--auto']:
-        autoscrape()
-    elif ARGS['--profile']:
-        profile_scrape()
-    elif not ARGS['PATH']:
+    if not ARGS['PATH']:
         raise NotImplementedError('GUI application will be implemented in version 1')
         import scrappy.gui as gui
-        gui.start(CFG, ARGS)
-    else:
-        default_scrape()
+        gui.start()
 
+    if ARGS['auto']:
+        ARGS.update(CFG['Auto'])
+        params = ARGS
+    elif ARGS['profile']:
+        params = parse_arguments(ARGS, load_profile(ARGS['profile']))
+
+    do_scrape(params)
 
 if __name__ == '__main__':
     main()

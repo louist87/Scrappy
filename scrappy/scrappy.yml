@@ -1,0 +1,14 @@
+Default:
+  #- confidence: 0.0
+  #- lang: 'en'
+  #- thresh: 0.0
+Auto:
+  confidence: 0.4
+  lang: 'en'
+  thresh: 0.1
+Profiles:
+  strict_match:
+    confidence: .7
+    thresh: 0.0
+  english:
+    lang: 'en'
