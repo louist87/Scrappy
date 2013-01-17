@@ -50,12 +50,6 @@ all_upper = lambda s: s.capitalize()
 dot_sep = lambda s: u'.'.join([c for c in s.split(' ') if c])
 
 
-def create_SXXEXX_ecode(snum, enum):
-    """e.g.: S01E22
-    """
-    return u''.join(('S', snum, 'E', enum))
-
-
 default_parser = {
                   'seriesname': [stripper, zfiller, titlecase, dot_sep],
                   'seasonnumber': [stripper, zfiller],
