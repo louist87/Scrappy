@@ -30,7 +30,7 @@ ARGS = {k.strip('-'): v for k, v in ARGS.items()}
 with open(ARGS['cfg'] or join(dirname(__file__), 'scrappy.yml')) as f:
     CFG = load(f)
 
-params = CFG['Default'] or {}
+params = CFG['General'] or {}
 
 
 def load_profile(params, profile_name):

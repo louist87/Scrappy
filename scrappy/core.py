@@ -106,11 +106,7 @@ class Scrape(object):
             Two-character language abbreviation (e.g.: 'en')
 
         confidence : float or int
-            Maximum allowable error to select a series name guess.
-            IMPORTANT NOTE:  The range of values that can be passed to this
-                             parameter depensd on the `comp_fn` parameter of
-                             _guess_series_name.  By default, the range is continuous
-                             between 0.0 and 1.0
+            Minimum confidence index to consider a series-name inference as valid.
         """
         self.normalized_seriesname = None
 
