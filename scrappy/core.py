@@ -81,7 +81,7 @@ class Scrape(object):
                  media,
                  interactive=False,
                  grabber=None,
-                 formatter=formatters.default,
+                 formatter=formatters.formatter_default,
                  tvdbid=None,
                  lang=None,
                  confidence=0.0

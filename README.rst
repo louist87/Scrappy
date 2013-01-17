@@ -78,7 +78,7 @@ The Scrappy application docstring is as follows:
     -t --test               Test run.  Do not modify files.
     -c --cfg                Use alternate config file
 
-Full documentation for the command-line application can be found `here <https://github.com/louist87/Scrappy/wiki/Commnad-Line-Application>`_.
+Full documentation for the command-line application can be found `here <https://github.com/louist87/Scrappy/wiki/Command-Line-Application`_.
 
 Documentation
 =============
