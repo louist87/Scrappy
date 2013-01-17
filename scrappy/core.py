@@ -81,6 +81,7 @@ class Scrape(object):
                  media,
                  interactive=False,
                  grabber=None,
+                 formatter=formatters.default,
                  tvdbid=None,
                  lang=None,
                  confidence=0.0
@@ -134,6 +135,7 @@ class Scrape(object):
         self._files = FileSystemInterface(media)
         self.filemap = dict((fname, None) for fname in self._files)
         self.revert_filenames = self._files.revert
+        self.formatter = formatter
 
         if not self.id:
             self._guess_series_name(confidence)
@@ -272,14 +274,14 @@ class Scrape(object):
 
         return ep
 
-    def rename_files(self, formatter=formatters.default, test=False):
+    def rename_files(self, test=False):
         """Apply pending renames in self.filemap.  All file renaming
         is atomic.
         """
         for fname in self.files:
             ep = self.filemap[fname]
             if ep is not None:
-                newname = u'{0}.{ext}'.format(formatter(ep), ext=fname.split('.')[-1])
+                newname = u'{0}.{ext}'.format(self.formatter(ep), ext=fname.split('.')[-1])
                 newname = os.path.join(get_path(fname), newname)
                 if not test:
                     self._files.rename(fname, newname)
