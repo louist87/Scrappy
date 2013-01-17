@@ -22,6 +22,7 @@ Simple API Call
 ~~~~~~~~~~~~~~~
 
 ::
+
     import scrappy.core as scrappy
 
     # Initialize a scrape
@@ -36,7 +37,7 @@ Simple API Call
 Advanced API Use
 ~~~~~~~~~~~~~~~~
 
-For information on glob-pattern matching, selecting from multiple results, and fixing errors, see the .. _API wiki page: https://github.com/louist87/Scrappy/wiki/API .
+For information on glob-pattern matching, selecting from multiple results, and fixing errors, see the `API wiki page <https://github.com/louist87/Scrappy/wiki/API>`_.
 
 Application
 ===========
@@ -52,7 +53,7 @@ script without specifying any files.
 Launching Scrappy while passing files will launch the command-line app.
 When using the command-line app, you are free to either define all of
 the parameters in the form of command-line arguments, or use
-settings defined in the .. _configuration file: https://github.com/louist87/Scrappy/wiki/Configuration-File.
+settings defined in the `configuration file <https://github.com/louist87/Scrappy/wiki/Configuration-File>`_.
 
 The Scrappy application docstring is as follows:
 
@@ -70,9 +71,9 @@ The Scrappy application docstring is as follows:
     -t --test               Test run.  Do not modify files.
     -c --cfg                Use alternate config file
 
-Full documentation for the command-line application can be found .. _here: https://github.com/louist87/Scrappy/wiki/Commnad-Line-Application
+Full documentation for the command-line application can be found `here <https://github.com/louist87/Scrappy/wiki/Commnad-Line-Application>`_.
 
 Documentation
 =============
 
-[Scrappy wiki](https://github.com/louist87/Scrappy/wiki/Documentation)
+`Scrappy wiki <https://github.com/louist87/Scrappy/wiki/Documentation>`_
