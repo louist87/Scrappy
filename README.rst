@@ -14,7 +14,7 @@ Installation
 
     pip install Scrappy --user
 
-::
+
 API
 ===
 
