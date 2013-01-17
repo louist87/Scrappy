@@ -21,7 +21,7 @@ from os.path import dirname, join
 from docopt import docopt
 import core as scrappy
 
-ARGS = docopt(__doc__, version="0.2.10 beta 8")
+ARGS = docopt(__doc__, version="0.2.10 beta 9")
 scrapeargs = ('tvdbid', 'lang', 'confidence', 'interactive')
 # controlargs = ('auto', 'profile', 'cfg', 'PATH')
 
