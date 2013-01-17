@@ -347,7 +347,7 @@ class QueryGrabber(BaseUI):
     def _popularity(self, show):
         tvdbid = show['id']
         showdat = tvdb.Tvdb(language=self.parent.language, apikey=self.parent._api_key)[tvdbid].data
-        score = int(showdat['ratingcount']) / float(showdat['rating'])
+        score = 1.0 - (float(showdat['rating']) / int(showdat['ratingcount']))
         if score > 0:
             return score
         return 0.0
