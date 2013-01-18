@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 from setuptools import setup
 
+with open('requirements.txt') as f:
+    req = f.read().splitlines()
+
 setup(
     name='Scrappy',
     version="0.2.10 beta 10",
@@ -8,7 +11,7 @@ setup(
     author_email='louist87@gmail.com',
     packages=['scrappy'],
     include_package_data=True,
-    install_requires=['guessit', 'tvdb_api', 'hachoir-metadata', 'hachoir-core', 'hachoir-parser'],
+    install_requires=req,
     url='https://github.com/louist87/scrappy',
     license='GPL 3.0',
     description='Rename video files based on information scraped from thetvdb.com',
