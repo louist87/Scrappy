@@ -3,10 +3,11 @@
 
 import os
 from glob import glob
-from functools import partial
+from functools import partial, wraps
 from mimetypes import guess_type
 from itertools import chain, repeat
 from collections import defaultdict, deque
+from unicodedata import normalize as uninorm
 
 import formatters
 
@@ -20,6 +21,26 @@ from hachoir_parser import createParser
 from hachoir_metadata import extractMetadata
 
 
+def normalize_unicode(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        args_normed = []
+        for a in args:
+            if isinstance(a, unicode):
+                a = uninorm(a, 'NFD')
+            args_normed.append(a)
+
+        kwargs_normed = {}
+        for k, v in kwargs.items():
+            if isinstance(k, unicode):
+                k = uninorm(a, 'NFD')
+            if isinstance(v, unicode):
+                v = uninorm(v, 'NFD')
+            kwargs_normed[k] = v
+        return func(*args, **kwargs)
+    return wrapper
+
+
 def get_path(path):
     return os.path.split(path)[0]
 
@@ -28,6 +49,7 @@ def get_filename(path):
     return os.path.split(path)[1]
 
 
+#@normalize_unicode
 def normalize(s):
     return s.strip().lower()
 
@@ -84,7 +106,8 @@ class Scrape(object):
                  formatter=formatters.formatter_default,
                  tvdbid=None,
                  lang=None,
-                 confidence=0.0
+                 confidence=0.0,
+                 query_thresh=1.0
                 ):
 
         """media : str or unicode
@@ -95,8 +118,9 @@ class Scrape(object):
             multiple results.
 
         grabber : tvdb_ui.BaseUI sublcass instance or None
-            Grabs appropriate TVDB query result.  If not None,
-            this option overrides `interactive`.
+            Grabs appropriate TVDB query result.
+            If None, uses default grabber.
+            Else, this option overrides `interactive`.
 
             If None, uses default QueryGrabber.
 
@@ -108,12 +132,17 @@ class Scrape(object):
 
         confidence : float or int
             Minimum confidence index to consider a series-name inference as valid.
+
+        query_thresh : float or int
+            Maximum error to accept a result returned by TheTVDB.
+            Default 1.0:  accept all TVDB results.
+            NOTE:  ignored if not using default grabber.
         """
         self.normalized_seriesname = None
 
         # TVDB api
         if not grabber and not interactive:
-            grabber = partial(QueryGrabber, parent=self)
+            grabber = partial(QueryGrabber, parent=self, thresh=query_thresh)
 
         self._api_params = {'language': lang,
                             'search_all_languages': lang == None,
@@ -227,17 +256,10 @@ class Scrape(object):
                         guesses.append(entries['comment'])
         return guesses
 
-    def map_episode_info(self, thresh, comp_fn=compare_strings):
+    def map_episode_info(self):
         """Map episode information to each file.
 
-        thresh : int or float
-            String difference threshold to accept a TVDB entry.  Parameter depends on comp_fn.
-            float for default comp_fn parameter (compare_strings)
-
-        comp_fn : fn
-            String comparison function that returns a measure of the difference between two strings.
-
-        return : tuple or None
+        return : tvdb_api.Show or None
             None indicates that no matching series was found
         """
         assert self.id or self.normalized_seriesname, 'could not identify TV series for scrape'
@@ -246,9 +268,7 @@ class Scrape(object):
         try:
             self.series = self._api[lookup_key]  # lookup series name
         except tvdb.tvdb_shownotfound:
-            pass
-
-        #TODO: pick best series if multiple hits
+            return None
 
         self.filemap = dict((f, s) for f, s in zip(self.files, map(self._get_episode_info, self.files)))
 
@@ -294,7 +314,8 @@ class QueryGrabber(BaseUI):
                  config,
                  log=None,
                  parent=None,
-                 comp_precision=2,
+                 thresh=None,
+                 round_precision=2,
                  comp_fn=compare_strings):
 
         BaseUI.__init__(self, config, log)
@@ -302,21 +323,23 @@ class QueryGrabber(BaseUI):
         if parent == None:
             raise ValueError('no reference to parent Scrape instance.')
         self.parent = parent
+        self.thresh = thresh
         self.comp_fn = comp_fn
-        self.comp_precision = comp_precision
+        self.round_precision = round_precision
 
     def selectSeries(self, allSeries):
-        # Filter by language
-        allSeries = self.language_filter(allSeries)
-        if len(allSeries) == 1:
+        # Filter by threshold
+        allSeries = self.threshold_filter(allSeries)
+        if allSeries == []:
+            return None
+        elif len(allSeries) == 1:
             return allSeries[0]
 
         # Filter by popularity metrics
         return self.popularity_filter(allSeries)
 
-    def language_filter(self, allSeries):
-        lang = self.parent.language
-        return [show for show in allSeries if show['language'] == lang or lang == None]
+    def threshold_filter(self, allSeries):
+        return [s for s in allSeries if self.comp_fn(s['seriesname'].encode("UTF-8", "ignore"), self.parent.normalized_seriesname) <= self.thresh]
 
     def popularity_filter(self, allSeries):
         comp = lambda s: self.comp_fn(s['seriesname'].encode("UTF-8", "ignore"), self.parent.normalized_seriesname)
@@ -336,8 +359,8 @@ class QueryGrabber(BaseUI):
         return reduce(self._pop_contest, popularity)[0]
 
     def _rounded(self, factor):
-        mvdec = 10 ** self.comp_precision  # move decimal point
-        return int(round(factor, self.comp_precision) * mvdec)
+        mvdec = 10 ** self.round_precision  # move decimal point
+        return int(round(factor, self.round_precision) * mvdec)
 
     def _pop_contest(self, s1, s2):
         s1_show, s1_pop = s1
