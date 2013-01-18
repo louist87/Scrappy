@@ -434,7 +434,7 @@ class FileSystemInterface(object):
 
     def _to_unicode(self, string):
         """Converts a string to Unicode"""
-        if type(string) == unicode:  # Already unicode!
+        if isinstance(string, unicode):  # Already unicode!
             return string
 
         import chardet
