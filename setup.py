@@ -6,7 +6,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='Scrappy',
-    version="0.2.10 beta 10",
+    version="0.2.10 beta 11",
     author='Louis Thibault',
     author_email='louist87@gmail.com',
     packages=['scrappy'],
