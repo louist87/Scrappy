@@ -5,8 +5,8 @@ import os
 import unittest
 import random
 
-import scrappy.core as scrappy
-import scrappy.formatters as formatters
+import core as scrappy
+import formatters as formatters
 
 
 # def test_compare_strings():
