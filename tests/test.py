@@ -3,10 +3,10 @@
 
 import os
 import unittest
-import random
+# import random
 
-import core as scrappy
-import formatters as formatters
+import scrappy.core as scrappy
+# import scrappy.formatters as formatters
 
 
 # def test_compare_strings():
