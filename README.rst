@@ -17,6 +17,8 @@ Installation
     pip install Scrappy --user
 
 
+*Note*:  tests can be run by invoking ``nosetests -w tests/`` from Scrappy's root directory.
+
 API
 ===
 
