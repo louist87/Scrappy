@@ -27,7 +27,7 @@ def normalize_unicode(func):
         args_normed = []
         for a in args:
             if isinstance(a, unicode):
-                a = uninorm(a, 'NFD')
+                a = uninorm('NFD', a)
             args_normed.append(a)
 
         kwargs_normed = {}
@@ -49,7 +49,7 @@ def get_filename(path):
     return os.path.split(path)[1]
 
 
-#@normalize_unicode
+@normalize_unicode
 def normalize(s):
     return s.strip().lower()
 

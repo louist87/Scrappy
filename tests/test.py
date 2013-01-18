@@ -3,24 +3,45 @@
 
 import os
 import unittest
-# import random
+import random
+import string
 
 import scrappy.core as scrappy
 # import scrappy.formatters as formatters
 
 
+def random_unicode(length=10):
+    ru = lambda: unichr(random.randint(0, 0x10ffff))
+    return ''.join([ru() for _ in xrange(length)])
+
+
+def random_ascii(length=10):
+    ascii = string.printable + string.whitespace
+    return ''.join([random.choice(ascii) for _ in xrange(length)])
+
+
 # def test_compare_strings():
 #     for _ in range(100):
-#         randuni = lambda: unichr(random.randint(0, 0x10ffff))
 #         s1_size = random.randint(1, 100)
 #         s2_size = random.randint(1, 100)
 
-#         s1 = ''.join([randuni() for _ in xrange(s1_size)])
-#         s2 = ''.join([randuni() for _ in xrange(s2_size)])
+#         s1 = random_unicode(random.randint(1, 100))
+#         s2 = random_unicode(random.randint(1, 100))
 
 #         diff = scrappy.compare_strings(s1, s2)
 
+#         print diff
 #         assert diff >= 0 and diff <= 1
+
+
+def test_normalize():
+    # ascii test
+    for i in xrange(1000):
+        scrappy.normalize(random_ascii(i))
+
+    # unicode test
+    for i in xrange(1000):
+        scrappy.normalize(random_unicode(i))
 
 
 class Test_Scrape(unittest.TestCase):
