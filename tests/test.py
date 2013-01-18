@@ -66,7 +66,8 @@ class Test_Scrape(unittest.TestCase):
         self.assertTrue(s.map_episode_info())
 
     def test_tvdbid(self):
-        s = scrappy.Scrape([f for f in os.listdir(os.getcwd()) if 'phil' in f],
+        # typo should be ignored bc of tvdbid
+        s = scrappy.Scrape('its always sunny i n philadelphia 101.mkv',
                            tvdbid=75805)
         self.assertTrue(s.map_episode_info())
 
