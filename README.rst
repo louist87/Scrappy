@@ -24,7 +24,7 @@ Developers can clone the ``master`` branch and fork locally.
 
     git clone https://github.com/louist87/Scrappy.git
 
-*Note*:  tests can be run by invoking ``nosetests -w tests/`` from Scrappy's root directory.  Please ensure that nosetests pass before submitting your pull request
+**Note**:  tests can be run by invoking ``nosetests -w tests/`` from Scrappy's root directory.  Please ensure that nosetests pass before submitting your pull request
 
 API
 ===
