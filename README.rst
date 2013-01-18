@@ -7,7 +7,7 @@ In short, you can turn something like ``bsg_301.avi`` into ``Battlestar.Galactic
 Scrappy provides a command-line app and a GUI app (coming soon), as well as a documented API for integrating
 scrape-based renaming into 3rd party applications.
 
-.. image:: https://travis-ci.org/louist87/Scrappy.png
+.. image:: https://api.travis-ci.org/louist87/Scrappy.png?branch=master
 
 Installation
 ============
