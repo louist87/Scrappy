@@ -12,12 +12,19 @@ scrape-based renaming into 3rd party applications.
 Installation
 ============
 
+Most users will want to install Scrappy through pip.
+
 ::
 
     pip install Scrappy --user
 
+Developers can clone the ``master`` branch and fork locally.
 
-*Note*:  tests can be run by invoking ``nosetests -w tests/`` from Scrappy's root directory.
+::
+
+    git clone https://github.com/louist87/Scrappy.git
+
+*Note*:  tests can be run by invoking ``nosetests -w tests/`` from Scrappy's root directory.  Please ensure that nosetests pass before submitting your pull request
 
 API
 ===
