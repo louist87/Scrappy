@@ -20,18 +20,25 @@ def random_ascii(length=10):
     return ''.join([random.choice(ascii) for _ in xrange(length)])
 
 
-# def test_compare_strings():
-#     for _ in range(100):
-#         s1_size = random.randint(1, 100)
-#         s2_size = random.randint(1, 100)
+def test_compare_strings():
+    """Test normalized Levenshtein distance.
+    """
+    hamming = lambda s, ss: sum(ch1 != ch2 for ch1, ch2 in zip(s, ss))
+    bigstrn = lambda slen, slen2: float(max(slen, slen2))
+    for i in range(1000):
+        s1 = random_unicode(random.randint(1, 50))
+        s2 = random_unicode(random.randint(1, 50))
 
-#         s1 = random_unicode(random.randint(1, 100))
-#         s2 = random_unicode(random.randint(1, 100))
+        ls1 = len(s1)
+        ls2 = len(s2)
 
-#         diff = scrappy.compare_strings(s1, s2)
-
-#         print diff
-#         assert diff >= 0 and diff <= 1
+        diff = scrappy.compare_strings(s1, s2)
+        assert diff >= 0 and diff <= 1
+        assert diff >= (max(ls1, ls2) - min(ls1, ls2)) / bigstrn(ls1, ls2)
+        if ls1 == ls2:
+            assert diff == hamming(s1, s2) / bigstrn(ls1, ls2)
+        if diff == 0:
+            assert s1 == s2
 
 
 def test_normalize():
@@ -45,31 +52,39 @@ def test_normalize():
 
 
 class Test_Scrape(unittest.TestCase):
+    def validate_output(self, scrp, id):
+        self.assertEqual(str(scrp.id), str(id))
+
     def test_basic(self):
         """Test simple scrape
         """
         s = scrappy.Scrape('its always sunny in philadelphia 1x2.mkv')
         self.assertTrue(s.map_episode_info())
+        self.validate_output(s, '75805')
 
     def test_glob(self):
         s = scrappy.Scrape('*phil*')
         self.assertTrue(s.map_episode_info())
+        self.validate_output(s, '75805')
 
     def test_list(self):
         s = scrappy.Scrape(['its always sunny i n philadelphia 101.mkv',
                             'its always sunny in philadelphia 1x2.mkv',
                             'its always sunny in phil s03e04.avi'])
         self.assertTrue(s.map_episode_info())
+        self.validate_output(s, '75805')
 
     def test_iter(self):
         s = scrappy.Scrape((f for f in os.listdir(os.getcwd()) if 'phil' in f))
         self.assertTrue(s.map_episode_info())
+        self.validate_output(s, '75805')
 
     def test_tvdbid(self):
         # typo should be ignored bc of tvdbid
         s = scrappy.Scrape('its always sunny i n philadelphia 101.mkv',
                            tvdbid=75805)
         self.assertTrue(s.map_episode_info())
+        self.validate_output(s, '75805')
 
 
 # class Test_Rename(unittest.TestCase):
