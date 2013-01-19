@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 from setuptools import setup
 
-# with open('requirements.txt') as f:
-#     req = f.read().splitlines()
-
 setup(
     name='Scrappy',
     version="0.2.10 beta 12",
