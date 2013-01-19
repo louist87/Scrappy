@@ -53,37 +53,40 @@ def test_normalize():
 
 class Test_Scrape(unittest.TestCase):
     def validate_output(self, scrp, id):
+        self.assertTrue(scrp.map_episode_info())
         self.assertEqual(str(scrp.id), str(id))
 
     def test_basic(self):
         """Test simple scrape
         """
         s = scrappy.Scrape('its always sunny in philadelphia 1x2.mkv')
-        self.assertTrue(s.map_episode_info())
         self.validate_output(s, '75805')
 
     def test_glob(self):
         s = scrappy.Scrape('*phil*')
-        self.assertTrue(s.map_episode_info())
         self.validate_output(s, '75805')
 
     def test_list(self):
         s = scrappy.Scrape(['its always sunny i n philadelphia 101.mkv',
                             'its always sunny in philadelphia 1x2.mkv',
                             'its always sunny in phil s03e04.avi'])
-        self.assertTrue(s.map_episode_info())
         self.validate_output(s, '75805')
 
     def test_iter(self):
         s = scrappy.Scrape((f for f in os.listdir(os.getcwd()) if 'phil' in f))
-        self.assertTrue(s.map_episode_info())
         self.validate_output(s, '75805')
 
     def test_tvdbid(self):
         # typo should be ignored bc of tvdbid
         s = scrappy.Scrape('its always sunny i n philadelphia 101.mkv',
                            tvdbid=75805)
-        self.assertTrue(s.map_episode_info())
+        self.validate_output(s, '75805')
+
+    def test_abstract(self):
+        s = scrappy.Scrape(['its always sunny i n philadelphia 101.mkv',
+                            'its always sunny in philadelphia 1x2.mkv',
+                            'its always sunny in phil s03e04.avi'],
+                            interface=scrappy.AbstractMediaInterface)
         self.validate_output(s, '75805')
 
 
