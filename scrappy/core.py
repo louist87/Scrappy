@@ -231,7 +231,7 @@ class Scrape(object):
 
     _api_key = 'D1BD82E2AE599ADD'
 
-    # @normalize_unicode
+    @normalize_unicode
     def __init__(self,
                  media,
                  tvdbid=None,
