@@ -87,7 +87,139 @@ def compare_strings(a, b):
         Coefficient representing the amount of **difference** between a and b.
     """
     mean = lambda seq: sum(seq) / float(len(seq))
-    return max(0, levenshtein_distance(a, b) / mean((len(a), len(b))))
+    return max(0, levenshtein_distance(a, b) / float(max(len(a), len(b))))
+
+
+class AbstractMediaInterface(object):
+    """Base class for all media interfaces.
+
+    Used when Scrappy does not have acccess to actual files on the local filesystem, and must
+    deal instead with string-form file names from another program (e.g.: Flexget)
+    """
+    def __init__(self, media):
+        if not hasattr(media, '__iter__'):
+            media = (media,)
+
+        self._files = self._process_files(media)
+        self._old = {f: None for f in self._files}
+
+    def __repr__(self):
+        return u"<{0}> containing {1} files".format(self.__class.__.__name__, len(self._files))
+
+    def __iter__(self):
+        for f in self._files:
+            yield f
+
+    def files():
+        doc = "Tracked files"
+
+        def fget(self):
+            return list(self._files)  # deep copy
+
+        def fset(self, value):
+            raise TypeError('use add, extend or pop methods to modify files')
+
+        def fdel(self):
+            raise TypeError('use pop or clear to remove items')
+        return locals()
+    files = property(**files())
+
+    def _process_files(self, media):
+        seen = set()
+        for f in self._flatten_dirs(chain(*[glob(m) for m in media])):
+            if f not in seen:
+                seen.add(f)
+
+        # sort, filter video files
+        files = []
+        for f in seen:
+            mtype = guess_type(f, False)[0]
+            if mtype and 'video' in mtype:
+                files.append(self._to_unicode(f))
+
+        return sorted(files)
+
+    def _flatten_dirs(self, media):
+        for path in media:
+            if os.path.isfile(path):
+                yield os.path.join(path)
+            for d, dirs, files in os.walk(path):
+                for f in files:
+                    yield os.path.join(path, f)
+
+    def _to_unicode(self, string):
+        """Converts a string to Unicode"""
+        if isinstance(string, unicode):  # Already unicode!
+            return string
+
+        import chardet
+        encoding = chardet.detect(string)["encoding"]
+        string = string.decode(encoding)
+        return string
+
+    def rename(self, old, new):
+        self._old[new] = old
+        self._old.pop(old)
+
+    def revert(self, files=None):
+        files = files or self._old.keys()
+        if not hasattr(files, '__iter__'):
+            files = (files,)
+
+        for k in files:
+            self.rename(k, self._old[k])
+
+    def add(self, new):
+        new = self._process_files(new)
+        if new not in self._files:
+            assert os.path.isfile(new), 'file is unreachable'
+            self._files = sorted(self._files.append(new))
+            self._old[new] = None
+
+    def pop(self, f):
+        if isinstance(f, int):
+            key = self._files.pop(f)
+        else:
+            for i, key in enumerate(self._files):
+                if key == f:
+                    self._files.pop(i)
+
+        self._old.pop(key)
+
+    def clear(self):
+        for i in list(self):
+            self.pop(i)
+
+    def extend(self, files):
+        files = self._process_files(files)
+        files = [f for f in files if f not in self._files]
+        self._files.extend(files)
+        self._old.update({k: None for k in files})
+
+
+class FileSystemInterface(AbstractMediaInterface):
+    """Media Interface for dealing with local files.
+
+    Includes additional checks to ensure that valid files are being
+    tracked.
+    """
+    def __init__(self, media):
+        super(FileSystemInterface, self).__init__(media)
+
+        assert self._files, 'no data'
+        assert False not in map(os.path.isfile, self._files), 'no file objects'
+
+    def rename(self, old, new):
+        os.rename(old, new)
+        self._old[new] = old
+        self._old.pop(old)
+
+    def extend(self, files):
+        files = self._process_files(files)
+        files = [f for f in files if f not in self._files]
+        assert filter(os.path.isfile, files), 'one or more files unreachable'
+        self._files.extend(files)
+        self._old.update({k: None for k in files})
 
 
 class Scrape(object):
@@ -99,15 +231,17 @@ class Scrape(object):
 
     _api_key = 'D1BD82E2AE599ADD'
 
+    @normalize_unicode
     def __init__(self,
                  media,
-                 interactive=False,
-                 grabber=None,
-                 formatter=formatters.formatter_default,
                  tvdbid=None,
                  lang=None,
                  confidence=0.0,
-                 query_thresh=1.0
+                 query_thresh=1.0,
+                 interactive=False,
+                 grabber=None,
+                 formatter=formatters.formatter_default,
+                 interface=FileSystemInterface
                 ):
 
         """media : str or unicode
@@ -124,6 +258,10 @@ class Scrape(object):
 
             If None, uses default QueryGrabber.
 
+        formatter : scrappy.formatters.Formatter instance
+            Object defining file name format to output.
+            The default `Formatter` outputs file names in `seriesname.SXXEXX.episodename.ext` format.
+
         tvdbid : int or str
             TVDB ID number for the show being queried.
 
@@ -137,6 +275,12 @@ class Scrape(object):
             Maximum error to accept a result returned by TheTVDB.
             Default 1.0:  accept all TVDB results.
             NOTE:  ignored if not using default grabber.
+
+        interface : AbstractMediaInterface class object
+            Object inhereting from AbstractMediaInterface base class.
+            The interface object provides a layer of abstraction for working with
+            local files or abstract files (strings representing file names).
+            By default, the FileSystemInterface class object is selected.
         """
         self.normalized_seriesname = None
 
@@ -161,7 +305,7 @@ class Scrape(object):
                 tvdbid = int(tvdbid.strip())
 
         # Files
-        self._files = FileSystemInterface(media)
+        self._files = interface(media)
         self.filemap = dict((fname, None) for fname in self._files)
         self.revert_filenames = self._files.revert
         self.formatter = formatter
@@ -376,109 +520,3 @@ class QueryGrabber(BaseUI):
         if score > 0:
             return score
         return 0.0
-
-
-class FileSystemInterface(object):
-    def __init__(self, media):
-        if not hasattr(media, '__iter__'):
-            media = (media,)
-
-        self._files = self._process_files(media)
-        assert self._files, 'no data'
-        assert filter(os.path.isfile, self._files), 'no file objects'
-        self._old = {f: None for f in self._files}
-
-    def __repr__(self):
-        return u"<FileSystemInterface> containing {0} files".format(len(self._files))
-
-    def __iter__(self):
-        for f in self._files:
-            yield f
-
-    def files():
-        doc = "Tracked files"
-
-        def fget(self):
-            return list(self._files)  # deep copy
-
-        def fset(self, value):
-            raise TypeError('use add, extend or pop methods to modify files')
-
-        def fdel(self):
-            raise TypeError('use pop or clear to remove items')
-        return locals()
-    files = property(**files())
-
-    def _process_files(self, media):
-        seen = set()
-        for f in self._flatten_dirs(chain(*[glob(m) for m in media])):
-            if f not in seen:
-                seen.add(f)
-
-        # sort, filter video files
-        files = []
-        for f in seen:
-            mtype = guess_type(f, False)[0]
-            if mtype and 'video' in mtype:
-                files.append(self._to_unicode(f))
-
-        return sorted(files)
-
-    def _flatten_dirs(self, media):
-        for path in media:
-            if os.path.isfile(path):
-                yield os.path.join(path)
-            for d, dirs, files in os.walk(path):
-                for f in files:
-                    yield os.path.join(path, f)
-
-    def _to_unicode(self, string):
-        """Converts a string to Unicode"""
-        if isinstance(string, unicode):  # Already unicode!
-            return string
-
-        import chardet
-        encoding = chardet.detect(string)["encoding"]
-        string = string.decode(encoding)
-        return string
-
-    def rename(self, old, new):
-        os.rename(old, new)
-        self._old[new] = old
-        self._old.pop(old)
-
-    def revert(self, files=None):
-        files = files or self._old.keys()
-        if not hasattr(files, '__iter__'):
-            files = (files,)
-
-        for k in files:
-            self.rename(k, self._old[k])
-
-    def add(self, new):
-        new = self._process_files(new)
-        if new not in self._files:
-            assert os.path.isfile(new), 'file is unreachable'
-            self._files = sorted(self._files.append(new))
-            self._old[new] = None
-
-    def pop(self, f):
-        if isinstance(f, int):
-            key = self._files.pop(f)
-        else:
-            for i, key in enumerate(self._files):
-                if key == f:
-                    self._files.pop(i)
-
-        self._old.pop(key)
-
-    def clear(self):
-        for i in list(self):
-            self.pop(i)
-
-    def extend(self, files):
-        files = self._process_files(files)
-        files = [f for f in files if f not in self._files]
-        assert filter(os.path.isfile, files), 'one or more files unreachable'
-        self._files.extend(files)
-        self._old.update({k: None for k in files})
