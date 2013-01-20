@@ -41,8 +41,7 @@ Simple API Call
     scrape = scrappy.Scrape('its always sunny in philadelphia 101.mkv')
 
     # Query TheTVDB for data and rename
-    err = .2  # Max error (difference coefficient) to accept result
-    if scrape.map_episode_info(err):  # Returns false if series not found.  Try increasing err.
+    if scrape.map_episode_info():
       scrape.rename_files(test=True)  # test file rename (no changes committed when test == True)
 
 Advanced API Use
