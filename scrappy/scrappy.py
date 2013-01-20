@@ -6,7 +6,7 @@
 Usage:  scrappy [PATH] ... [options]
 
 -a --auto               Automatically scrape and rename without user interaction.
--p --profile            User-specified profile
+-p PROF --profile PROF  User-specified profile
 -i ID --tvdbid ID       Specify TVDB id
 -l LANG --lang LANG     Specify language code [default: en].
 --confidence            Lower bound to consider a guessed series name [default: 0.]
@@ -25,7 +25,7 @@ import core as scrappy
 import formatters
 
 ARGS = docopt(__doc__, version="0.2.10 beta 13")
-scrapeargs = ('tvdbid', 'lang', 'confidence', 'interactive', 'formatter')
+scrapeargs = ('tvdbid', 'lang', 'confidence', 'interactive', 'formatter', 'query_thresh')
 # controlargs = ('auto', 'profile', 'cfg', 'PATH')
 
 
@@ -33,7 +33,7 @@ ARGS = {k.strip('-'): v for k, v in ARGS.items()}
 with open(ARGS['cfg'] or join(dirname(__file__), 'scrappy.yml')) as f:
     CFG = load(f)
 
-params = CFG['General'] or {}
+cfg_general = CFG['General'] or {}
 
 
 class FormatterError(Exception):
@@ -41,17 +41,23 @@ class FormatterError(Exception):
 
 
 def load_profile(params, profile_name):
-    return params.update(CFG['Profiles'][profile_name])
+    params.update(CFG['Profiles'][profile_name])
+    return params
 
 
 def parse_arguments(args, params):
     params.update(args)
+    if 'thresh' in params:
+        params['query_thresh'] = params.pop('thresh')
+    for k in scrapeargs:
+        if params[k] is False or params[k] is None:
+            params.pop(k)
     return params
 
 
 def do_scrape(params):
     s = scrappy.Scrape(ARGS['PATH'], **{k: v for k, v in params.items() if k in scrapeargs})
-    if s.map_episode_info(thresh=params['thresh']):
+    if s.map_episode_info():
         s.rename_files(test=params['test'])
 
 
@@ -85,10 +91,9 @@ def main():
 
     # Check if Auto or Profile has been invoked, load as needed
     if ARGS['auto']:
-        ARGS.update(CFG['Auto'])
-        params = ARGS
+        params = parse_arguments(ARGS, CFG['Auto'])
     elif ARGS['profile']:
-        params = parse_arguments(ARGS, load_profile(ARGS['profile']))
+        params = parse_arguments(ARGS, load_profile(cfg_general, ARGS['profile']))
 
     # send traffic
     do_scrape(params)
