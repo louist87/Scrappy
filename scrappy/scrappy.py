@@ -29,7 +29,7 @@ scrapeargs = ('tvdbid', 'lang', 'confidence', 'interactive', 'formatter', 'query
 # controlargs = ('auto', 'profile', 'cfg', 'PATH')
 
 
-ARGS = {k.strip('-'): v for k, v in ARGS.items()}
+ARGS = dict(k.strip('-'), v for (k, v) in ARGS.items())
 with open(ARGS['cfg'] or join(dirname(__file__), 'scrappy.yml')) as f:
     CFG = load(f)
 
@@ -56,7 +56,7 @@ def parse_arguments(args, params):
 
 
 def do_scrape(params):
-    s = scrappy.Scrape(ARGS['PATH'], **{k: v for k, v in params.items() if k in scrapeargs})
+    s = scrappy.Scrape(ARGS['PATH'], **dict(k, v for (k, v) in params.items() if k in scrapeargs))
     if s.map_episode_info():
         s.rename_files(test=params['test'])
 

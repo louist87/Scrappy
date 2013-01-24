@@ -101,7 +101,7 @@ class AbstractMediaInterface(object):
             media = (media,)
 
         self._files = self._process_files(media)
-        self._old = {f: None for f in self._files}
+        self._old = dict((f, None) for f in self._files)
 
     def __repr__(self):
         return u"<{0}> containing {1} files".format(self.__class.__.__name__, len(self._files))
@@ -125,8 +125,9 @@ class AbstractMediaInterface(object):
     files = property(**files())
 
     def _process_files(self, media):
+        # filter duplicates
         seen = set()
-        for f in self._flatten_dirs(chain(*[glob(m) for m in media])):
+        for f in media:
             if f not in seen:
                 seen.add(f)
 
@@ -138,14 +139,6 @@ class AbstractMediaInterface(object):
                 files.append(self._to_unicode(f))
 
         return sorted(files)
-
-    def _flatten_dirs(self, media):
-        for path in media:
-            if os.path.isfile(path):
-                yield os.path.join(path)
-            for d, dirs, files in os.walk(path):
-                for f in files:
-                    yield os.path.join(path, f)
 
     def _to_unicode(self, string):
         """Converts a string to Unicode"""
@@ -194,7 +187,7 @@ class AbstractMediaInterface(object):
         files = self._process_files(files)
         files = [f for f in files if f not in self._files]
         self._files.extend(files)
-        self._old.update({k: None for k in files})
+        self._old.update(dict((k, None) for k in files))
 
 
 class FileSystemInterface(AbstractMediaInterface):
@@ -209,6 +202,29 @@ class FileSystemInterface(AbstractMediaInterface):
         assert self._files, 'no data'
         assert False not in map(os.path.isfile, self._files), 'no file objects'
 
+    def _process_files(self, media):
+        seen = set()
+        for f in self._flatten_dirs(chain(*[glob(m) for m in media])):
+            if f not in seen:
+                seen.add(f)
+
+        # sort, filter video files
+        files = []
+        for f in seen:
+            mtype = guess_type(f, False)[0]
+            if mtype and 'video' in mtype:
+                files.append(self._to_unicode(f))
+
+        return sorted(files)
+
+    def _flatten_dirs(self, media):
+        for path in media:
+            if os.path.isfile(path):
+                yield os.path.join(path)
+            for d, dirs, files in os.walk(path):
+                for f in files:
+                    yield os.path.join(path, f)
+
     def rename(self, old, new):
         os.rename(old, new)
         self._old[new] = old
@@ -219,7 +235,7 @@ class FileSystemInterface(AbstractMediaInterface):
         files = [f for f in files if f not in self._files]
         assert filter(os.path.isfile, files), 'one or more files unreachable'
         self._files.extend(files)
-        self._old.update({k: None for k in files})
+        self._old.upate(dict((k, None) for k in files))
 
 
 class Scrape(object):
@@ -393,7 +409,7 @@ class Scrape(object):
 
                 for line in metadata.exportPlaintext():
                     entries = dict([parse(normalize(l)) for l in line if 'comment' in l or 'title' in l])
-                    entries = {k: guessit.guess_episode_info(v) for k, v in entries.items()}
+                    entries = dict(k, guessit.guess_episode_info(v) for k, v in entries.items())
                     if 'title' in entries:
                         guesses.append(entries['title'])
                     elif 'comment' in entries:
