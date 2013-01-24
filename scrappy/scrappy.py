@@ -24,7 +24,7 @@ from docopt import docopt
 import core as scrappy
 import formatters
 
-ARGS = docopt(__doc__, version="0.3.0 alpha")
+ARGS = docopt(__doc__, version="0.3.0 alpha 3")
 scrapeargs = ('tvdbid', 'lang', 'confidence', 'interactive', 'formatter', 'query_thresh')
 # controlargs = ('auto', 'profile', 'cfg', 'PATH')
 
@@ -56,7 +56,7 @@ def parse_arguments(args, params):
 
 
 def do_scrape(params):
-    s = scrappy.Scrape(ARGS['PATH'], **dict(k, v for (k, v) in params.items() if k in scrapeargs))
+    s = scrappy.Scrape((ARGS['PATH'], **dict(k, v for (k, v)) in params.items() if k in scrapeargs))
     if s.map_episode_info():
         s.rename_files(test=params['test'])
 
