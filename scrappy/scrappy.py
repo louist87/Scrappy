@@ -29,7 +29,7 @@ scrapeargs = ('tvdbid', 'lang', 'confidence', 'interactive', 'formatter', 'query
 # controlargs = ('auto', 'profile', 'cfg', 'PATH')
 
 
-ARGS = dict(k.strip('-'), v for (k, v) in ARGS.items())
+ARGS = dict((k.strip('-'), v) for (k, v) in ARGS.items())
 with open(ARGS['cfg'] or join(dirname(__file__), 'scrappy.yml')) as f:
     CFG = load(f)
 

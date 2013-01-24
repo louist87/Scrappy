@@ -379,7 +379,7 @@ class Scrape(object):
                     high_conf[ntitle] = guess.confidence('series')  # keep highest confidence for a given title-guess
 
             #   Select title with highest rating / occurrence
-            ranked = dict((high_conf[series] * normalCount[series], series) for series in normalCount)
+            ranked = dict(((high_conf[series] * normalCount[series], series) for series in normalCount))
             self.normalized_seriesname = ranked[sorted(ranked.keys(), reverse=True)[0]] or None
         else:
             self.normalized_seriesname = None
@@ -408,8 +408,8 @@ class Scrape(object):
                     continue
 
                 for line in metadata.exportPlaintext():
-                    entries = dict([parse(normalize(l)) for l in line if 'comment' in l or 'title' in l])
-                    entries = dict(k, guessit.guess_episode_info(v) for k, v in entries.items())
+                    entries = dict((parse(normalize(l)) for l in line if 'comment' in l or 'title' in l))
+                    entries = dict(((k, guessit.guess_episode_info(v)) for (k, v) in entries.items()))
                     if 'title' in entries:
                         guesses.append(entries['title'])
                     elif 'comment' in entries:
