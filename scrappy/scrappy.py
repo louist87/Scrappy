@@ -24,7 +24,7 @@ from docopt import docopt
 import core as scrappy
 import formatters
 
-ARGS = docopt(__doc__, version="0.2.10 beta 14")
+ARGS = docopt(__doc__, version="0.3.0 alpha")
 scrapeargs = ('tvdbid', 'lang', 'confidence', 'interactive', 'formatter', 'query_thresh')
 # controlargs = ('auto', 'profile', 'cfg', 'PATH')
 
