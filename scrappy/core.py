@@ -5,8 +5,8 @@ import os
 from glob import glob
 from functools import partial, wraps
 from mimetypes import guess_type
-from itertools import chain, repeat
-from collections import defaultdict, deque
+from itertools import chain
+from collections import defaultdict
 from unicodedata import normalize as uninorm
 
 import formatters
@@ -86,7 +86,7 @@ def compare_strings(a, b):
     return : float
         Coefficient representing the amount of **difference** between a and b.
     """
-    mean = lambda seq: sum(seq) / float(len(seq))
+    # mean = lambda seq: sum(seq) / float(len(seq))
     return max(0, levenshtein_distance(a, b) / float(max(len(a), len(b))))
 
 
@@ -330,7 +330,7 @@ class Scrape(object):
             self._guess_series_name(confidence)
 
     def files():
-        doc = "The files property."
+        doc = "Files tracked for renaming."
 
         def fget(self):
             return tuple(f for f in self._files)
@@ -344,7 +344,7 @@ class Scrape(object):
     files = property(**files())
 
     def language():
-        doc = "The language property."
+        doc = "TVDB query language."
 
         def fget(self):
             return self._language
