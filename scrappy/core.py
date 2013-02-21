@@ -134,8 +134,8 @@ class AbstractMediaInterface(object):
         # sort, filter video files
         files = []
         for f in seen:
-            mtype = guess_type(f, False)[0]
-            if mtype and 'video' in mtype:
+            mime_type, _ = guess_type(f, False)  # (mimetype, encoding)
+            if mime_type and 'video' in mime_type:
                 files.append(self._to_unicode(f))
 
         return sorted(files)
@@ -251,6 +251,7 @@ class Scrape(object):
     def __init__(self,
                  media,
                  tvdbid=None,
+                 series_name=None,
                  lang=None,
                  confidence=0.0,
                  query_thresh=1.0,
@@ -281,6 +282,9 @@ class Scrape(object):
         tvdbid : int or str
             TVDB ID number for the show being queried.
 
+        series_name : unicode or str
+            Series name to query.  Note that this bypasses automatic series name inference.
+
         lang : str or None
             Two-character language abbreviation (e.g.: 'en')
 
@@ -298,7 +302,10 @@ class Scrape(object):
             local files or abstract files (strings representing file names).
             By default, the FileSystemInterface class object is selected.
         """
-        self.normalized_seriesname = None
+        if series_name:
+            self.normalized_seriesname = normalize(series_name)
+        else:
+            self.normalized_seriesname = None
 
         # TVDB api
         if not grabber and not interactive:
@@ -326,7 +333,7 @@ class Scrape(object):
         self.revert_filenames = self._files.revert
         self.formatter = formatter
 
-        if not self.id:
+        if not self.id and not self.normalized_seriesname:
             self._guess_series_name(confidence)
 
     def files():
