@@ -463,10 +463,15 @@ class Scrape(object):
             if ep is not None:
                 newname = u'{0}.{ext}'.format(self.formatter(ep), ext=fname.split('.')[-1])
                 newname = os.path.join(get_path(fname), newname)
-                if not test:
-                    self._files.rename(fname, newname)
-                else:
-                    print newname
+
+                # Avoid frivolous renames.  This is important for flexget integration
+                # where single files are renamed based on information scraped from titles
+                # of other files in the same directory.
+                if ep != newname:
+                    if not test:
+                        self._files.rename(fname, newname)
+                    else:
+                        print newname
 
 
 class QueryGrabber(BaseUI):
