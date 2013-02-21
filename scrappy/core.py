@@ -151,8 +151,15 @@ class AbstractMediaInterface(object):
         return string
 
     def rename(self, old, new):
+        self._replace_file_in_list(old, new)
         self._old[new] = old
         self._old.pop(old)
+
+    def _replace_file_in_list(self, old, new):
+        for i, f in enumerate(self._files):
+            if f == old:
+                self._files.pop(i)
+                self._files.insert(i, new)
 
     def revert(self, files=None):
         files = files or self._old.keys()
@@ -227,6 +234,7 @@ class FileSystemInterface(AbstractMediaInterface):
 
     def rename(self, old, new):
         os.rename(old, new)
+        self._replace_file_in_list(old, new)
         self._old[new] = old
         self._old.pop(old)
 
