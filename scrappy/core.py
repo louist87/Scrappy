@@ -3,7 +3,7 @@
 
 import os
 from glob import glob
-from functools import partial, wraps
+from functools import wraps
 from mimetypes import guess_type
 from itertools import chain
 from collections import defaultdict
@@ -31,13 +31,13 @@ def normalize_unicode(func):
             args_normed.append(a)
 
         kwargs_normed = {}
-        for k, v in kwargs.items():
+        for k, v in kwargs.iteritems():
             if isinstance(k, unicode):
                 k = uninorm(a, 'NFD')
             if isinstance(v, unicode):
                 v = uninorm(v, 'NFD')
             kwargs_normed[k] = v
-        return func(*args, **kwargs)
+        return func(*args_normed, **kwargs_normed)
     return wrapper
 
 
@@ -104,7 +104,7 @@ class AbstractMediaInterface(object):
         self._old = dict((f, None) for f in self._files)
 
     def __repr__(self):
-        return u"<{0}> containing {1} files".format(self.__class.__.__name__, len(self._files))
+        return u"<{0}> containing {1} files".format(self.__class__.__name__, len(self._files))
 
     def __iter__(self):
         for f in self._files:
@@ -316,15 +316,15 @@ class Scrape(object):
             self.normalized_seriesname = None
 
         # TVDB api
-        if not grabber and not interactive:
-            grabber = partial(QueryGrabber, parent=self, thresh=query_thresh)
+        # if not grabber and not interactive:
+        #     grabber = partial(QueryGrabber, parent=self, thresh=query_thresh)
 
         self._api_params = {'language': lang,
-                            'search_all_languages': lang == None,
+                            'search_all_languages': lang is None,
                             'apikey': self._api_key,
                             'interactive': interactive,
-                            'custom_ui': grabber
-                           }
+                            'custom_ui': grabber}
+
         self._api = tvdb.Tvdb(**self._api_params)  # TODO:  render interactive and implement a custom UI
 
         # Other params
@@ -500,7 +500,7 @@ class QueryGrabber(BaseUI):
 
         BaseUI.__init__(self, config, log)
 
-        if parent == None:
+        if parent is None:
             raise ValueError('no reference to parent Scrape instance.')
         self.parent = parent
         self.thresh = thresh
