@@ -52,9 +52,9 @@ def test_normalize():
 
 
 class Test_Scrape(unittest.TestCase):
-    def validate_output(self, scrp, id):
+    def validate_output(self, scrp, id_):
         self.assertTrue(scrp.map_episode_info())
-        self.assertEqual(str(scrp.id), str(id))
+        self.assertEqual(str(scrp.id), str(id_))
 
     def test_basic(self):
         """Test simple scrape
@@ -86,7 +86,7 @@ class Test_Scrape(unittest.TestCase):
         s = scrappy.Scrape(['its always sunny i n philadelphia 101.mkv',
                             'its always sunny in philadelphia 1x2.mkv',
                             'its always sunny in phil s03e04.avi'],
-                            interface=scrappy.AbstractMediaInterface)
+                           interface=scrappy.AbstractMediaInterface)
         self.validate_output(s, '75805')
 
 
@@ -99,11 +99,9 @@ class Test_Scrape(unittest.TestCase):
 #         self.assertEqual(files, s.files)
 
 #     def test_formatters(self):
-#         forms = (
-#                  formatters.formatter_default,
+#         forms = (formatters.formatter_default,
 #                  formatters.formatter_X0X,
-#                  formatters.formatter_longname
-#                 )
+#                  formatters.formatter_longname)
 
 #         for form in forms:
 #             s = scrappy.Scrape([f for f in os.listdir(os.getcwd()) if 'phil' in f],
