@@ -21,21 +21,27 @@ from hachoir_parser import createParser
 from hachoir_metadata import extractMetadata
 
 
-def normalize_unicode(func):
+def normalize_unicode(func, norm_type='NFC', encoding='utf-8'):
+    decode = lambda s: s.decode(encoding) if isinstance(s, str) else s
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         args_normed = []
+        args = map(decode, args)
         for a in args:
             if isinstance(a, unicode):
-                a = uninorm('NFD', a)
+                a = uninorm(norm_type, a)
             args_normed.append(a)
 
         kwargs_normed = {}
+        kwargs = dict(zip(map(decode, kwargs.iterkeys()),
+                          map(decode, kwargs.itervalues()))
+                      )
         for k, v in kwargs.iteritems():
             if isinstance(k, unicode):
-                k = uninorm(a, 'NFD')
+                k = uninorm(norm_type, k)
             if isinstance(v, unicode):
-                v = uninorm(v, 'NFD')
+                v = uninorm(norm_type, v)
             kwargs_normed[k] = v
         return func(*args_normed, **kwargs_normed)
     return wrapper
@@ -58,8 +64,12 @@ def levenshtein_distance(s1, s2):
     s1 = normalize(s1)
     s2 = normalize(s2)
 
+    return _levenshtein_distance(s1, s2)
+
+
+def _levenshtein_distance(s1, s2):
     if len(s1) < len(s2):
-        return levenshtein_distance(s2, s1)
+        return _levenshtein_distance(s2, s1)
     if not s1:
         return len(s2)
 
@@ -87,6 +97,7 @@ def compare_strings(a, b):
         Coefficient representing the amount of **difference** between a and b.
     """
     # mean = lambda seq: sum(seq) / float(len(seq))
+    print levenshtein_distance(a, b), len(a), len(b)
     return max(0, levenshtein_distance(a, b) / float(max(len(a), len(b))))
 
 

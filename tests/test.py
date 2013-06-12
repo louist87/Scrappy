@@ -5,9 +5,23 @@ import os
 import unittest
 import random
 import string
+from itertools import tee, izip
 
 import scrappy.core as scrappy
 # import scrappy.formatters as formatters
+
+
+def pairwise(iterable):
+    a, b = tee(iterable)
+    next(b, None)
+    return izip(a, b)
+
+
+def get_utf8_panagram_data():
+    with open(os.path.join(os.path.dirname(__file__), 'utf-8-panagrams.txt'), 'rb') as f:
+        dat = f.readlines()
+
+    return (map(lambda l: l.decode('utf-8'), pair) for pair in pairwise(dat))
 
 
 def random_unicode(length=10):
@@ -21,22 +35,12 @@ def random_ascii(length=10):
 
 
 def test_compare_strings():
-    """Test normalized Levenshtein distance.
-    """
-    hamming = lambda s, ss: sum(ch1 != ch2 for ch1, ch2 in zip(s, ss))
-    bigstrn = lambda slen, slen2: float(max(slen, slen2))
-    for i in range(1000):
-        s1 = random_unicode(random.randint(1, 50))
-        s2 = random_unicode(random.randint(1, 50))
-
-        ls1 = len(s1)
-        ls2 = len(s2)
+    """Test normalized Levenshtein distance."""
+    for s1, s2 in get_utf8_panagram_data():
+        ls1, ls2 = len(s1), len(s2)
 
         diff = scrappy.compare_strings(s1, s2)
-        assert diff >= 0 and diff <= 1
-        assert diff >= (max(ls1, ls2) - min(ls1, ls2)) / bigstrn(ls1, ls2)
-        if ls1 == ls2:
-            assert diff == hamming(s1, s2) / bigstrn(ls1, ls2)
+        assert 0 <= diff <= 1
         if diff == 0:
             assert s1 == s2
 
