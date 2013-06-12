@@ -18,8 +18,8 @@ class Formatter(object):
 
     def __repr__(self):
         return u"<Formatter object> {0}, sep='{1}', parser={2}".format(self.format,
-                                                                      self.sep,
-                                                                      self.parser)
+                                                                       self.sep,
+                                                                       self.parser)
 
     def __call__(self, ep):
         arg_pairs = [(a, v) for a, v in zip(self.args, map(self.lookup, repeat(ep, len(self.args)), self.args))]
@@ -50,31 +50,24 @@ all_upper = lambda s: s.capitalize()
 dot_sep = lambda s: u'.'.join([c for c in s.split(' ') if c])
 
 
-parser_default = {
-                  'seriesname': [stripper, titlecase, dot_sep],
+parser_default = {'seriesname': [stripper, titlecase, dot_sep],
                   'seasonnumber': [stripper, zfiller],
                   'episodenumber': [stripper, zfiller],
-                  'episodename': [stripper, titlecase, dot_sep]
-                 }
+                  'episodename': [stripper, titlecase, dot_sep]}
 
 formatter_default = Formatter(u'{seriesname}{sep}S{seasonnumber}{sep}E{episodenumber}{sep}{episodename}',
-                              sep='.', parser=parser_default
-                             )
+                              sep='.', parser=parser_default)
 
-parser_X0X = {
-              'seriesname': [stripper, titlecase, dot_sep],
+parser_X0X = {'seriesname': [stripper, titlecase, dot_sep],
               'seasonnumber': [stripper],
               'episodenumber': [stripper, lambda epnum: epnum.zfill(1)],
-              'episodename': [stripper, titlecase, dot_sep]
-             }
+              'episodename': [stripper, titlecase, dot_sep]}
 
 formatter_X0X = Formatter(u'{seriesname}{sep}{seasonnumber}{episodenumber}{sep}{episodename}',
                           sep='.', parser=parser_X0X)
 
-parser_longname = {
-                   'seriesname': [stripper, titlecase, dot_sep],
-                   'episodename': [stripper, titlecase, dot_sep]
-                  }
+parser_longname = {'seriesname': [stripper, titlecase, dot_sep],
+                   'episodename': [stripper, titlecase, dot_sep]}
 
 formatter_longname = Formatter(u'{seriesname}{sep}Season{seasonnumber}{sep}Episode{episodenumber}{sep}{episodename}',
                                sep='.', parser=parser_longname)
